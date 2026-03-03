@@ -1,0 +1,365 @@
+---
+title: "Troubleshooting"
+description: "Common issues and solutions for Harness CLI"
+---
+
+## Authentication Errors
+
+### Invalid or Expired Token
+
+**Symptom:** Commands fail with "authentication failed" or "unauthorized" errors.
+
+**Solution:**
+
+<Steps>
+  <Step title="Check token validity">
+    Run `hc auth status` to verify your authentication state.
+  </Step>
+  <Step title="Re-authenticate">
+    If your token is invalid or expired:
+    ```bash
+    hc auth logout
+    hc auth login
+    ```
+  </Step>
+  <Step title="Verify credentials">
+    Ensure your API token has the necessary permissions in the Harness platform.
+  </Step>
+</Steps>
+
+<Note>
+  Authentication tokens are stored at `$HOME/.harness/auth.json` with restricted permissions (0600).
+</Note>
+
+### Cannot Extract Account ID from Token
+
+**Symptom:** Error message: "token does not contains accountID"
+
+**Solution:**
+
+The CLI expects tokens in the format `pat.AccountID.Random.Random`. If you're seeing this error:
+
+1. Verify your token format is correct
+2. Manually specify the account ID during login:
+   ```bash
+   hc auth login --api-token <your-token> --account <account-id>
+   ```
+
+### Permission Denied Errors
+
+**Symptom:** Commands fail with "Access denied" or 403 errors.
+
+**Causes:**
+- Token lacks required permissions for the operation
+- Organization or project scope is incorrect
+- Resource doesn't exist in the specified scope
+
+**Solution:**
+
+```bash
+# Verify your current context
+hc auth status
+
+# Ensure you're using the correct scope
+hc registry list --org <org-id> --project <project-id>
+```
+
+<Warning>
+  Make sure your API token has the appropriate role-based access control (RBAC) permissions for the resources you're trying to access.
+</Warning>
+
+## Connection Issues
+
+### Cannot Connect to Harness API
+
+**Symptom:** Error: "error connecting to Harness API"
+
+**Possible Causes:**
+1. Network connectivity issues
+2. Incorrect API URL
+3. Firewall or proxy blocking the connection
+4. SSL certificate validation issues
+
+**Solution:**
+
+<AccordionGroup>
+  <Accordion title="Verify network connectivity">
+    Test basic connectivity to Harness:
+    ```bash
+    curl -I https://app.harness.io
+    ```
+  </Accordion>
+
+  <Accordion title="Check API URL configuration">
+    Verify your API URL is correct:
+    ```bash
+    hc auth status
+    ```
+    
+    Default URL should be `https://app.harness.io`. If using a custom endpoint:
+    ```bash
+    hc auth login --api-url https://your-custom-endpoint.harness.io
+    ```
+  </Accordion>
+
+  <Accordion title="Corporate proxy or firewall">
+    If behind a corporate proxy, ensure:
+    - HTTPS traffic to `*.harness.io` is allowed
+    - Proxy environment variables are set:
+      ```bash
+      export HTTPS_PROXY=http://proxy.company.com:8080
+      export NO_PROXY=localhost,127.0.0.1
+      ```
+  </Accordion>
+</AccordionGroup>
+
+### Timeout Errors
+
+**Symptom:** Commands hang or timeout, especially during large operations like migrations.
+
+**Solution:**
+
+- For registry migrations, adjust concurrency:
+  ```bash
+  hc registry migrate --config migrate.yaml --concurrency 5
+  ```
+  
+- Check network stability and latency to Harness endpoints
+
+- For large artifact operations, consider splitting into smaller batches
+
+## Common Command Failures
+
+### Registry Not Found
+
+**Symptom:** "not found" error when accessing a registry.
+
+**Solution:**
+
+<Steps>
+  <Step title="List available registries">
+    ```bash
+    hc registry list
+    ```
+  </Step>
+  <Step title="Verify registry name">
+    Ensure you're using the correct registry identifier (case-sensitive).
+  </Step>
+  <Step title="Check scope">
+    Registries are scoped to projects. Verify you're in the correct organization and project:
+    ```bash
+    hc registry list --org <org-id> --project <project-id>
+    ```
+  </Step>
+</Steps>
+
+### Artifact Push Failures
+
+**Common Issues:**
+
+<AccordionGroup>
+  <Accordion title="File not found or invalid path">
+    **Error:** Operation failed on file path
+    
+    **Solution:**
+    - Use absolute paths or ensure you're in the correct directory
+    - Verify file permissions allow read access
+    - Check the file actually exists:
+      ```bash
+      ls -la /path/to/artifact
+      ```
+  </Accordion>
+
+  <Accordion title="Invalid version format">
+    **Error:** Validation failed for version field
+    
+    **Solution:**
+    Different package types have different version requirements:
+    - Generic: Any string
+    - Maven: Follows Maven versioning (e.g., `1.0.0-SNAPSHOT`)
+    - NPM: Follows semver (e.g., `1.2.3`)
+    - Docker: Valid tag format
+    
+    Refer to the specific package type documentation.
+  </Accordion>
+
+  <Accordion title="Package already exists">
+    **Error:** Package version already exists
+    
+    **Solution:**
+    - Use the `--overwrite` flag to replace existing versions (use with caution)
+    - Increment the version number
+    - Delete the existing version first:
+      ```bash
+      hc artifact delete <name> --registry <registry> --version <version>
+      ```
+  </Accordion>
+</AccordionGroup>
+
+### Configuration File Errors
+
+**Symptom:** "Failed to load configuration" during migration.
+
+**Solution:**
+
+1. Validate your YAML syntax:
+   ```bash
+   # Use a YAML validator
+   yamllint migrate-config.yaml
+   ```
+
+2. Ensure required fields are present:
+   - Source registry configuration
+   - Destination registry configuration
+   - Authentication credentials
+
+3. Check file permissions allow read access:
+   ```bash
+   chmod 644 migrate-config.yaml
+   ```
+
+<Note>
+  See the [Registry Migration guide](/guides/registry-migration) for configuration examples.
+</Note>
+
+## Command Output Issues
+
+### JSON Output Parsing Errors
+
+**Symptom:** Cannot parse JSON output or unexpected format.
+
+**Solution:**
+
+- Ensure you're using the `--format json` flag:
+  ```bash
+  hc registry list --format json
+  ```
+
+- The default format is `table` for human-readable output
+
+- Pipe JSON output to `jq` for better parsing:
+  ```bash
+  hc registry list --format json | jq '.data[] | {name: .identifier, type: .packageType}'
+  ```
+
+### Empty or Unexpected Results
+
+**Issue:** Commands return no results when you expect data.
+
+**Debugging Steps:**
+
+<Steps>
+  <Step title="Verify scope">
+    Ensure you're querying the correct organization and project:
+    ```bash
+    hc artifact list --registry <name> --org <org-id> --project <project-id>
+    ```
+  </Step>
+  <Step title="Check permissions">
+    Verify your token has read access to the resources.
+  </Step>
+  <Step title="Use verbose logging">
+    Enable debug logs to see API responses:
+    ```bash
+    hc registry list --log-file debug.log
+    ```
+  </Step>
+</Steps>
+
+## Build and Installation Issues
+
+### Building from Source Fails
+
+**Symptom:** `make build` fails with compilation errors.
+
+**Requirements:**
+- Go 1.21 or later
+- Required build tools installed
+
+**Solution:**
+
+<Steps>
+  <Step title="Install Go">
+    Download and install Go from [golang.org](https://golang.org/dl/)
+  </Step>
+  <Step title="Verify Go version">
+    ```bash
+    go version
+    ```
+  </Step>
+  <Step title="Clean and rebuild">
+    ```bash
+    make clean
+    make build
+    ```
+  </Step>
+  <Step title="Install dependencies">
+    ```bash
+    go mod download
+    go mod verify
+    ```
+  </Step>
+</Steps>
+
+### Binary Not Found After Installation
+
+**Symptom:** `hc: command not found` after installation.
+
+**Solution:**
+
+1. Verify the binary is in your PATH:
+   ```bash
+   echo $PATH
+   ```
+
+2. Check installation location:
+   ```bash
+   which hc
+   # or
+   ls -la /usr/local/bin/hc
+   ```
+
+3. Add installation directory to PATH:
+   ```bash
+   export PATH=$PATH:/usr/local/bin
+   # Add to ~/.bashrc or ~/.zshrc for persistence
+   ```
+
+4. Verify binary permissions:
+   ```bash
+   chmod +x /usr/local/bin/hc
+   ```
+
+## Getting Help
+
+If you're still experiencing issues:
+
+<CardGroup cols={2}>
+  <Card title="Check Logs" icon="file-lines">
+    Enable logging to diagnose issues:
+    ```bash
+    hc <command> --log-file debug.log
+    ```
+  </Card>
+  
+  <Card title="GitHub Issues" icon="github">
+    Report bugs or request features at:
+    [github.com/harness/harness-cli/issues](https://github.com/harness/harness-cli/issues)
+  </Card>
+  
+  <Card title="Community" icon="users">
+    Join the Harness community for support and discussions.
+  </Card>
+  
+  <Card title="Documentation" icon="book">
+    Review the full [command reference](/commands/auth/overview) and [guides](/guides/registry-migration).
+  </Card>
+</CardGroup>
+
+<Warning>
+  When reporting issues, include:
+  - CLI version (`hc version` if available)
+  - Operating system and architecture
+  - Full command and error message
+  - Relevant log output (with sensitive data redacted)
+</Warning>

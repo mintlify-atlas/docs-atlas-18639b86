@@ -1,0 +1,265 @@
+---
+title: Dart packages
+description: Publish and consume Dart/Flutter packages with Harness Artifact Registry
+---
+
+Harness Artifact Registry provides support for Dart packages, allowing you to host private Dart and Flutter libraries.
+
+## Overview
+
+Dart registry features:
+- Standard pub.dev protocol
+- Automatic metadata extraction from `pubspec.yaml`
+- `.tar.gz` package format support
+- Version management following SemVer
+- Integration with pub and flutter CLI
+
+## Pushing Dart packages
+
+Use the `hc artifact push dart` command:
+
+```bash
+hc artifact push dart <registry-name> <package-file-path> \
+  --pkg-url <pkg-url>
+```
+
+### How it works
+
+The CLI automatically:
+1. Validates the package archive format
+2. Extracts `pubspec.yaml` from the archive
+3. Reads package name and version
+4. Uploads the package to the registry
+
+## Creating Dart packages
+
+<Steps>
+  <Step title="Create pubspec.yaml">
+    Define your package metadata:
+    
+    ```yaml pubspec.yaml
+    name: my_package
+    version: 1.0.0
+    description: A useful Dart package
+    environment:
+      sdk: '>=3.0.0 <4.0.0'
+    
+    dependencies:
+      # Your dependencies
+    
+    dev_dependencies:
+      test: ^1.24.0
+    ```
+  </Step>
+  
+  <Step title="Package your library">
+    Create the package archive:
+    
+    ```bash
+    # Using dart pub
+    dart pub publish --dry-run
+    
+    # Or create manually
+    tar -czf my_package-1.0.0.tar.gz .
+    ```
+  </Step>
+  
+  <Step title="Upload to registry">
+    Push the package:
+    
+    ```bash
+    hc artifact push dart my-registry ./my_package-1.0.0.tar.gz \
+      --pkg-url https://app.harness.io/registry/pkg
+    ```
+  </Step>
+</Steps>
+
+## Installing Dart packages
+
+Configure pub to use your Harness registry:
+
+### In pubspec.yaml
+
+Add a custom dependency:
+
+```yaml pubspec.yaml
+dependencies:
+  my_package:
+    hosted:
+      name: my_package
+      url: https://<registry-url>/
+    version: ^1.0.0
+```
+
+### Using pub credentials
+
+Configure authentication:
+
+```bash
+# Set up credentials
+dart pub token add https://<registry-url>/
+# Enter your Harness API token when prompted
+```
+
+### Install dependencies
+
+```bash
+dart pub get
+
+# Or for Flutter projects
+flutter pub get
+```
+
+## Examples
+
+<CodeGroup>
+
+```bash Dart package
+# Package and push a Dart library
+tar -czf my_package-1.0.0.tar.gz . --exclude='.git' --exclude='.dart_tool'
+hc artifact push dart my-registry ./my_package-1.0.0.tar.gz \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash Flutter package
+# Package and push a Flutter package
+tar -czf my_flutter_widget-2.0.0.tar.gz . --exclude='.git' --exclude='build'
+hc artifact push dart my-registry ./my_flutter_widget-2.0.0.tar.gz \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash Plugin package
+# Package and push a Flutter plugin
+tar -czf my_plugin-1.5.0.tar.gz .
+hc artifact push dart my-registry ./my_plugin-1.5.0.tar.gz \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+</CodeGroup>
+
+## Pubspec.yaml requirements
+
+<Warning>
+  The `pubspec.yaml` must contain `name` and `version` fields
+</Warning>
+
+Minimal configuration:
+
+```yaml
+name: my_package
+version: 1.0.0
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+```
+
+For Flutter packages:
+
+```yaml
+name: my_flutter_package
+version: 1.0.0
+description: A Flutter package
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+```
+
+## Package structure
+
+Typical Dart package structure:
+
+```
+my_package/
+├── lib/
+│   └── my_package.dart
+├── test/
+│   └── my_package_test.dart
+├── pubspec.yaml
+├── README.md
+├── CHANGELOG.md
+└── LICENSE
+```
+
+## CI/CD integration
+
+<Tabs>
+  <Tab title="GitHub Actions">
+    ```yaml
+    - name: Setup Dart
+      uses: dart-lang/setup-dart@v1
+    
+    - name: Package and publish
+      run: |
+        dart pub get
+        dart test
+        tar -czf my_package-${{ github.ref_name }}.tar.gz .
+        hc artifact push dart my-registry ./my_package-*.tar.gz \
+          --pkg-url https://app.harness.io/registry/pkg
+      env:
+        HARNESS_API_KEY: ${{ secrets.HARNESS_API_KEY }}
+    ```
+  </Tab>
+  
+  <Tab title="GitLab CI">
+    ```yaml
+    publish:
+      image: dart:stable
+      script:
+        - dart pub get
+        - dart test
+        - tar -czf my_package-$CI_COMMIT_TAG.tar.gz .
+        - hc artifact push dart my-registry ./my_package-*.tar.gz --pkg-url $PKG_URL
+      variables:
+        HARNESS_API_KEY: $HARNESS_TOKEN
+      only:
+        - tags
+    ```
+  </Tab>
+</Tabs>
+
+## Version constraints
+
+Dart uses Semantic Versioning with caret syntax:
+
+- `^1.0.0` - Compatible with 1.0.0, allows >=1.0.0 &lt;2.0.0
+- `>=1.0.0 <2.0.0` - Explicit range
+- `1.0.0` - Exact version
+- `any` - Any version (not recommended)
+
+## Troubleshooting
+
+<Accordion title="pubspec.yaml validation failed">
+  Ensure your pubspec.yaml is valid:
+  
+  ```bash
+  # Validate pubspec.yaml
+  dart pub publish --dry-run
+  ```
+</Accordion>
+
+<Accordion title="Package name mismatch">
+  The archive filename should match the package name and version:
+  
+  ```bash
+  # ✅ Correct
+  my_package-1.0.0.tar.gz  # matches pubspec.yaml name: my_package, version: 1.0.0
+  ```
+</Accordion>
+
+<Accordion title="Authentication failed">
+  Re-add your pub token:
+  
+  ```bash
+  dart pub token add https://<registry-url>/
+  # Enter your Harness API token
+  ```
+</Accordion>
+
+## See also
+
+- [Artifact push command](/commands/artifact/push)
+- [Artifact management guide](/guides/artifact-management)
+- [Dart pub documentation](https://dart.dev/tools/pub)

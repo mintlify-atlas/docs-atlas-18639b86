@@ -1,0 +1,233 @@
+---
+title: hc artifact copy
+description: Copy artifacts between registries
+---
+
+## Synopsis
+
+Copies a specific version of an artifact package from one registry to another within your Harness account.
+
+```bash
+hc artifact copy <source-path> <destination-registry> [flags]
+```
+
+## Arguments
+
+<ParamField path="source-path" type="string" required>
+  Source package path in format: `<SRC_REGISTRY>/<PACKAGE_NAME>/<VERSION>`
+</ParamField>
+
+<ParamField path="destination-registry" type="string" required>
+  Target registry identifier where the package will be copied
+</ParamField>
+
+## Options
+
+<ParamField path="--artifact-type" type="string">
+  Artifact type (e.g., `model` or `dataset`). Required for certain registries like Hugging Face.
+</ParamField>
+
+## Source Path Format
+
+The source path must follow this structure:
+
+```
+<SRC_REGISTRY>/<PACKAGE_NAME>/<VERSION>
+```
+
+**Components:**
+- `SRC_REGISTRY` - Source registry identifier
+- `PACKAGE_NAME` - Full artifact path (can include nested paths)
+- `VERSION` - Specific version to copy
+
+## Examples
+
+<CodeGroup>
+```bash Copy Docker image
+hc artifact copy docker-prod/nginx/1.21.0 docker-staging
+```
+
+```bash Copy NPM package
+hc artifact copy npm-registry/@myorg/my-package/2.0.1 npm-backup
+```
+
+```bash Copy with nested package path
+hc artifact copy source-registry/libs/common/utils/1.0.0 dest-registry
+```
+
+```bash Copy Hugging Face model
+hc artifact copy hf-registry/bert-base/1.0.0 hf-backup --artifact-type model
+```
+
+```bash Copy Hugging Face dataset
+hc artifact copy hf-registry/training-data/2.1.0 hf-backup --artifact-type dataset
+```
+</CodeGroup>
+
+## Operation Flow
+
+The copy operation performs the following steps:
+
+1. **Validates input parameters** - Checks format and required fields
+2. **Parses source path** - Extracts registry, artifact, and version
+3. **Initiates copy** - Requests server-side copy operation
+4. **Returns result** - Confirms successful copy
+
+```
+Validating input parameters... ✓
+Input parameters validated
+copying package from docker-prod/nginx/1.21.0 to docker-staging... ✓
+Successfully Copied package from docker-prod/nginx/1.21.0 to docker-staging
+```
+
+## Important Notes
+
+<Note>
+**Server-side operation** - The copy happens entirely on the server. No data is transferred through your client.
+</Note>
+
+<Warning>
+**Same account only** - You can only copy artifacts between registries in the same Harness account.
+</Warning>
+
+<Note>
+**Version-specific** - The copy command copies a specific version, not all versions of an artifact.
+</Note>
+
+## Validation Rules
+
+The command validates:
+
+- Source path has exactly 3 components (registry/artifact/version)
+- Registry identifier is not empty
+- Artifact path is not empty
+- Version is not empty
+- Target registry identifier is provided
+- Account identifier is configured
+
+## Error Handling
+
+<AccordionGroup>
+  <Accordion title="Invalid source path format">
+    ```
+    Error: invalid format: expected '<SRC_REGISTRY>/<ARTIFACT_PATH>/<VERSION>'
+    ```
+    Ensure your source path has all three required components separated by slashes.
+  </Accordion>
+
+  <Accordion title="Source artifact not found">
+    ```
+    Error: failed to copy package: 404 Not Found
+    ```
+    Verify the source registry, package name, and version exist using `hc artifact get`.
+  </Accordion>
+
+  <Accordion title="Destination registry not found">
+    ```
+    Error: failed to copy package: 404 Not Found
+    response: {"message": "registry not found"}
+    ```
+    Verify the destination registry exists using `hc registry list`.
+  </Accordion>
+
+  <Accordion title="Permission denied">
+    ```
+    Error: failed to copy package: 403 Forbidden
+    ```
+    Ensure you have write permissions on the destination registry.
+  </Accordion>
+
+  <Accordion title="Missing artifact type">
+    ```
+    Error: artifact_type is required for this registry type
+    ```
+    Add the `--artifact-type` flag for registries that require it (e.g., Hugging Face).
+  </Accordion>
+</AccordionGroup>
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Promote artifacts between environments">
+    ```bash
+    # Copy from dev to staging
+    hc artifact copy docker-dev/myapp/1.2.3 docker-staging
+    
+    # Copy from staging to production
+    hc artifact copy docker-staging/myapp/1.2.3 docker-prod
+    ```
+    Promote validated artifacts through deployment environments.
+  </Accordion>
+
+  <Accordion title="Create backups">
+    ```bash
+    hc artifact copy primary-registry/critical-app/2.0.0 backup-registry
+    ```
+    Copy important artifacts to a backup registry for disaster recovery.
+  </Accordion>
+
+  <Accordion title="Migrate between registries">
+    ```bash
+    # Copy all versions one by one
+    hc artifact copy old-registry/myapp/1.0.0 new-registry
+    hc artifact copy old-registry/myapp/1.1.0 new-registry
+    hc artifact copy old-registry/myapp/2.0.0 new-registry
+    ```
+    Migrate artifacts when reorganizing your registry structure.
+  </Accordion>
+
+  <Accordion title="Share across teams">
+    ```bash
+    hc artifact copy team-a-registry/shared-lib/1.0.0 team-b-registry
+    ```
+    Copy artifacts to make them available to different teams.
+  </Accordion>
+</AccordionGroup>
+
+## Tips for Complex Package Names
+
+### Handling Nested Paths
+
+Package names can include multiple path segments:
+
+```bash
+# Source path parsing:
+# registry/org/team/app/1.0.0
+#   ↓       ↓
+# registry = "registry"
+# artifact = "org/team/app"
+# version = "1.0.0"
+
+hc artifact copy registry/org/team/app/1.0.0 dest-registry
+```
+
+### Scoped NPM Packages
+
+```bash
+hc artifact copy npm-registry/@myorg/my-package/1.0.0 npm-backup
+```
+
+### Maven Coordinates
+
+```bash
+hc artifact copy maven-registry/com/example/myapp/1.0.0 maven-backup
+```
+
+## Verification
+
+After copying, verify the artifact exists in the destination:
+
+```bash
+# List artifacts in destination registry
+hc artifact list --registry dest-registry
+
+# Get specific artifact details
+hc artifact get my-package --registry dest-registry
+```
+
+## See Also
+
+- [hc artifact push](/commands/artifact/push) - Push new artifacts
+- [hc artifact list](/commands/artifact/list) - List artifacts in registries
+- [hc artifact get](/commands/artifact/get) - Get artifact details
+- [hc registry list](/commands/registry/list) - List available registries

@@ -1,0 +1,436 @@
+---
+title: 'hc auth logout'
+description: 'Remove saved Harness credentials and end your CLI session'
+---
+
+## Usage
+
+```bash
+hc auth logout [flags]
+```
+
+## Description
+
+The `hc auth logout` command removes your saved Harness credentials by deleting the authentication configuration file located at `~/.harness/auth.json`. This effectively ends your CLI session and clears all stored authentication data including API tokens, account IDs, and scope settings.
+
+After logging out, you'll need to run `hc auth login` again to authenticate with Harness services.
+
+## Flags
+
+<ParamField path="--force" type="boolean" default="false">
+  Force logout even if not currently logged in. When enabled, the command will succeed without error even if no authentication file exists.
+  
+  Useful for cleanup scripts or when you want to ensure a clean state regardless of current authentication status.
+</ParamField>
+
+## What Gets Removed
+
+Running `hc auth logout` performs the following actions:
+
+1. **Deletes Authentication File** - Removes `~/.harness/auth.json` from disk
+2. **Clears Session Config** - Resets global configuration values:
+   - API Base URL
+   - Authentication Token
+   - Account ID
+   - Organization ID
+   - Project ID
+
+<Note>
+  The command does not delete the `~/.harness` directory itself, only the authentication file within it.
+</Note>
+
+## Examples
+
+### Basic Logout
+
+Standard logout when authenticated:
+
+```bash
+$ hc auth logout
+Successfully logged out from Harness
+```
+
+### Forced Logout
+
+Force logout even when not authenticated:
+
+```bash
+$ hc auth logout --force
+No authentication file found. Already logged out.
+```
+
+### Logout Without Force
+
+Attempting to logout when not authenticated (without `--force`):
+
+```bash
+$ hc auth logout
+Error: not logged in: no authentication file found at /home/user/.harness/auth.json
+```
+
+### Switch Between Accounts
+
+Logout and login to a different account:
+
+```bash
+# Logout from current account
+$ hc auth logout
+Successfully logged out from Harness
+
+# Login to different account
+$ hc auth login --api-token $OTHER_ACCOUNT_TOKEN
+Validating credentials...
+✓ Credentials validated successfully
+Successfully logged into Harness
+```
+
+### Cleanup Script
+
+Use in scripts to ensure clean authentication state:
+
+```bash cleanup.sh
+#!/bin/bash
+
+# Force logout to ensure clean state
+hc auth logout --force
+
+echo "Authentication state cleared"
+```
+
+### CI/CD Pipeline Cleanup
+
+Clean up credentials after pipeline execution:
+
+<CodeGroup>
+```yaml GitHub Actions
+name: Deploy with Harness
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Login to Harness
+        env:
+          HARNESS_API_TOKEN: ${{ secrets.HARNESS_API_TOKEN }}
+        run: |
+          hc auth login \
+            --api-token $HARNESS_API_TOKEN \
+            --non-interactive
+      
+      - name: Deploy Application
+        run: hc pipeline execute --id my-pipeline
+      
+      - name: Cleanup Credentials
+        if: always()
+        run: hc auth logout --force
+```
+
+```yaml GitLab CI
+deploy:
+  stage: deploy
+  script:
+    - hc auth login --api-token $HARNESS_API_TOKEN --non-interactive
+    - hc pipeline execute --id my-pipeline
+  after_script:
+    - hc auth logout --force
+```
+
+```groovy Jenkins
+pipeline {
+    agent any
+    
+    environment {
+        HARNESS_TOKEN = credentials('harness-api-token')
+    }
+    
+    stages {
+        stage('Deploy') {
+            steps {
+                sh 'hc auth login --api-token $HARNESS_TOKEN --non-interactive'
+                sh 'hc pipeline execute --id my-pipeline'
+            }
+        }
+    }
+    
+    post {
+        always {
+            sh 'hc auth logout --force'
+        }
+    }
+}
+```
+</CodeGroup>
+
+### Docker Container Cleanup
+
+Ensure credentials don't persist in containers:
+
+```dockerfile Dockerfile
+FROM alpine:latest
+
+RUN apk add --no-cache curl bash
+
+RUN curl -L -o /usr/local/bin/hc \
+    https://github.com/harness/harness-cli/releases/latest/download/hc-linux-amd64 \
+    && chmod +x /usr/local/bin/hc
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+```
+
+```bash entrypoint.sh
+#!/bin/bash
+set -e
+
+# Trap to ensure cleanup on exit
+trap 'hc auth logout --force' EXIT INT TERM
+
+# Login to Harness
+hc auth login \
+  --api-token "${HARNESS_API_TOKEN}" \
+  --non-interactive
+
+# Execute the passed command
+exec "$@"
+
+# Note: logout happens automatically via trap
+```
+
+## Error Handling
+
+### Not Logged In (Without Force)
+
+When trying to logout without being authenticated:
+
+```bash
+$ hc auth logout
+Error: not logged in: no authentication file found at /home/user/.harness/auth.json
+```
+
+**Solution**: Use the `--force` flag if you want the command to succeed anyway:
+
+```bash
+$ hc auth logout --force
+No authentication file found. Already logged out.
+```
+
+### Permission Denied
+
+If you encounter permission errors:
+
+```bash
+$ hc auth logout
+Error: error removing authentication file: remove /home/user/.harness/auth.json: permission denied
+```
+
+**Solution**: Check file permissions and ownership:
+
+```bash
+# Check current permissions
+ls -la ~/.harness/auth.json
+
+# Fix permissions if needed
+chmod 600 ~/.harness/auth.json
+
+# Try logout again
+hc auth logout
+```
+
+## Use Cases
+
+### Security Best Practice
+
+Logout when finished working with Harness:
+
+```bash
+# Complete your work
+hc pipeline execute --id prod-deployment
+
+# Logout for security
+hc auth logout
+```
+
+### Switching Environments
+
+Switch between different Harness environments:
+
+```bash
+# Working with production
+hc auth status
+# Authentication Status: ✓ Authenticated
+# API URL:      https://app.harness.io
+# Account ID:   prod-account-123
+
+# Switch to staging
+hc auth logout
+hc auth login --api-token $STAGING_TOKEN
+
+# Verify new environment
+hc auth status
+# Authentication Status: ✓ Authenticated
+# API URL:      https://app.harness.io
+# Account ID:   staging-account-456
+```
+
+### Testing Multiple Accounts
+
+Test CLI with different accounts:
+
+```bash test-accounts.sh
+#!/bin/bash
+
+ACCOUNTS=(
+  "$ACCOUNT_1_TOKEN"
+  "$ACCOUNT_2_TOKEN"
+  "$ACCOUNT_3_TOKEN"
+)
+
+for token in "${ACCOUNTS[@]}"; do
+  echo "Testing account..."
+  
+  # Login
+  hc auth login --api-token "$token" --non-interactive
+  
+  # Run tests
+  hc pipeline list
+  hc service list
+  
+  # Logout
+  hc auth logout
+  
+  echo "---"
+done
+```
+
+### Shared Machine Cleanup
+
+On shared systems, always logout to protect your credentials:
+
+```bash
+# After completing work on shared machine
+hc auth logout
+
+# Verify logout
+if [ -f ~/.harness/auth.json ]; then
+  echo "Warning: Auth file still exists!"
+else
+  echo "Successfully logged out"
+fi
+```
+
+## Verification
+
+Confirm successful logout by checking:
+
+### Check Authentication File
+
+```bash
+$ ls -la ~/.harness/auth.json
+ls: cannot access '/home/user/.harness/auth.json': No such file or directory
+```
+
+### Try Authentication Status
+
+```bash
+$ hc auth status
+Error: not logged in: no API token found. Please run 'hc auth login' first
+```
+
+### Attempt API Operation
+
+```bash
+$ hc pipeline list
+Error: not logged in: no API token found. Please run 'hc auth login' first
+```
+
+## Comparison with Force Flag
+
+| Scenario | Without `--force` | With `--force` |
+|----------|------------------|----------------|
+| Logged in | Succeeds, removes auth file | Succeeds, removes auth file |
+| Not logged in | Fails with error | Succeeds with message |
+| File doesn't exist | Fails with error | Succeeds with message |
+| Permission denied | Fails with error | Fails with error |
+
+## Best Practices
+
+1. **Always Logout on Shared Systems** - Protect your credentials on multi-user machines
+2. **Use in CI/CD Cleanup** - Add logout to pipeline cleanup steps
+3. **Force Flag in Scripts** - Use `--force` in automation to avoid errors
+4. **Logout Before Switching** - Always logout before logging into a different account
+5. **Verify After Logout** - Run `hc auth status` to confirm logout
+6. **Trap Signals** - Use shell traps to ensure logout on script exit
+7. **Container Cleanup** - Always logout in Docker entrypoint cleanup
+
+## Security Implications
+
+<Warning>
+  Logout does not revoke your API token. It only removes the locally stored credentials.
+</Warning>
+
+To fully secure your account:
+
+1. **Run `hc auth logout`** - Remove local credentials
+2. **Revoke the API token** - Go to Harness UI and revoke the token if compromised
+3. **Generate new token** - Create a new token for future use
+
+## File Locations
+
+| OS | Auth File Location |
+|----|-------------------|
+| Linux | `/home/username/.harness/auth.json` |
+| macOS | `/Users/username/.harness/auth.json` |
+| Windows | `C:\Users\username\.harness\auth.json` |
+
+## Related Commands
+
+- [hc auth login](/commands/auth/login) - Authenticate with Harness
+- [hc auth status](/commands/auth/status) - Check authentication status
+
+## Troubleshooting
+
+### Logout Succeeds but File Still Exists
+
+If the file still exists after logout:
+
+```bash
+# Manually remove the file
+rm -f ~/.harness/auth.json
+
+# Verify removal
+ls -la ~/.harness/auth.json
+```
+
+### Can't Logout Due to Process Lock
+
+If another process is using the auth file:
+
+```bash
+# Find processes using the file
+lsof ~/.harness/auth.json
+
+# Stop the processes or wait for them to complete
+# Then try logout again
+hc auth logout
+```
+
+### Directory Remains After Logout
+
+The `~/.harness` directory is not deleted by logout:
+
+```bash
+# This is normal - the directory persists
+ls -la ~/.harness
+# Shows empty directory or other config files
+
+# To fully remove all CLI data:
+rm -rf ~/.harness
+```

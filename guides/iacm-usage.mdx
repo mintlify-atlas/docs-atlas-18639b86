@@ -1,0 +1,673 @@
+---
+title: Infrastructure as Code Management Guide
+description: Execute Terraform plans remotely using Harness IACM
+---
+
+Manage your infrastructure as code with remote execution using Harness IACM. Execute Terraform plans on Harness servers while streaming logs back to your terminal.
+
+## Overview
+
+Harness IACM (Infrastructure as Code Management) provides:
+
+- **Remote execution** of Terraform plans on Harness infrastructure
+- **Local code upload** from your development environment
+- **Real-time log streaming** to monitor execution progress
+- **Workspace management** with configured pipelines
+- **Variable replacement** and resource targeting
+- **Graceful interruption** handling
+
+## How It Works
+
+<Steps>
+  <Step title="Configure Workspace">
+    Create a workspace in Harness IACM with:
+    - Default pipeline for plan execution
+    - Repository path configuration
+    - Terraform version settings
+  </Step>
+
+  <Step title="Run Plan Command">
+    Execute `hc iacm plan` from your Terraform project directory
+  </Step>
+
+  <Step title="Code Upload">
+    CLI zips your local code and uploads to Harness
+  </Step>
+
+  <Step title="Remote Execution">
+    Harness executes the plan on its servers using your workspace pipeline
+  </Step>
+
+  <Step title="Log Streaming">
+    Execution logs stream back to your terminal in real-time
+  </Step>
+</Steps>
+
+## Quick Start
+
+<Steps>
+  <Step title="Navigate to Terraform Directory">
+    ```bash
+    cd /path/to/terraform/project
+    ```
+  </Step>
+
+  <Step title="Execute Remote Plan">
+    ```bash
+    hc iacm plan --workspace-id my-workspace
+    ```
+  </Step>
+
+  <Step title="Confirm Upload">
+    Review the directory to be uploaded and confirm:
+    ```
+    The workspace has no configured folder path,
+    Harness will upload the following directory and its contents
+    /path/to/terraform/project
+    
+    Do you want to continue? (y/N): y
+    ```
+  </Step>
+
+  <Step title="Monitor Execution">
+    Watch as logs stream to your terminal:
+    ```
+    === Pipeline Execution Logs ===
+    ========================== Starting stage Infrastructure ==========================
+    ========================== Starting step Terraform Init ==========================
+    Initializing the backend...
+    Initializing provider plugins...
+    
+    ========================== Starting step Terraform Plan ==========================
+    Terraform will perform the following actions:
+      # aws_instance.web will be created
+      + resource "aws_instance" "web" {
+          + ami                         = "ami-0c55b159cbfafe1f0"
+          + instance_type              = "t2.micro"
+        }
+    
+    Plan: 1 to add, 0 to change, 0 to destroy.
+    ```
+  </Step>
+</Steps>
+
+## Command Reference
+
+### Basic Usage
+
+```bash
+hc iacm plan --workspace-id <workspace_id>
+```
+
+### With Options
+
+```bash
+hc iacm plan \
+  --workspace-id my-workspace \
+  --org-id my-org \
+  --project-id my-project \
+  --target resource1 \
+  --target resource2 \
+  --replace key1=value1
+```
+
+### Command Options
+
+<ParamField path="--workspace-id" type="string" required>
+  Workspace identifier in Harness IACM
+</ParamField>
+
+<ParamField path="--org-id" type="string">
+  Organization identifier (defaults to global config)
+</ParamField>
+
+<ParamField path="--project-id" type="string">
+  Project identifier (defaults to global config)
+</ParamField>
+
+<ParamField path="--target" type="string[]">
+  Resource targets to plan (can be specified multiple times)
+</ParamField>
+
+<ParamField path="--replace" type="string[]">
+  Variable replacements in `key=value` format (can be specified multiple times)
+</ParamField>
+
+## Workspace Configuration
+
+### Default Pipeline
+
+Each workspace must have a default pipeline configured for plan operations. The CLI uses this pipeline for remote execution.
+
+<Note>
+  The default pipeline can be configured at workspace level or project level. Workspace-level pipelines take precedence.
+</Note>
+
+**Pipeline configuration:**
+- **Plan operation**: Terraform init → Terraform plan
+- **Infrastructure stage**: Defines execution environment
+- **Terraform steps**: Run Terraform commands
+
+### Repository Path
+
+The workspace can specify a folder path within your repository:
+
+<CodeGroup>
+```text No Folder Path
+# Uploads entire current directory
+/path/to/project/
+  ├── main.tf
+  ├── variables.tf
+  └── outputs.tf
+```
+
+```text With Folder Path: "terraform"
+# If workspace folder path = "terraform"
+# And you run from: /path/to/project/terraform
+# Uploads: /path/to/project/
+/path/to/project/
+  ├── terraform/
+  │   ├── main.tf
+  │   ├── variables.tf
+  │   └── outputs.tf
+  └── modules/
+```
+</CodeGroup>
+
+**Path resolution logic:**
+
+1. **No folder path configured**: Uploads current directory
+2. **Folder path configured**: 
+   - If current directory ends with folder path → uploads parent directory
+   - If folder path exists as subdirectory → uploads current directory
+   - Otherwise → error
+
+## Advanced Usage
+
+### Resource Targeting
+
+Target specific resources for planning:
+
+```bash
+hc iacm plan --workspace-id my-workspace \
+  --target aws_instance.web \
+  --target aws_security_group.web_sg
+```
+
+This passes `-target` flags to Terraform, limiting the plan to specified resources and their dependencies.
+
+**Example output:**
+```
+Terraform will perform the following actions:
+  # aws_instance.web will be updated in-place
+  ~ resource "aws_instance" "web" {
+      ~ instance_type = "t2.micro" -> "t2.small"
+    }
+
+Plan: 0 to add, 1 to change, 0 to destroy.
+```
+
+### Variable Replacement
+
+Override Terraform variables during plan:
+
+```bash
+hc iacm plan --workspace-id my-workspace \
+  --replace instance_type=t2.large \
+  --replace region=us-west-2 \
+  --replace enable_monitoring=true
+```
+
+This passes `-replace` flags to Terraform, replacing specific variables for this execution.
+
+**Use cases:**
+- Testing different configurations
+- Environment-specific values
+- Feature flag toggling
+- Temporary overrides
+
+### Organization and Project Scope
+
+Override default org/project settings:
+
+```bash
+hc iacm plan \
+  --workspace-id my-workspace \
+  --org-id production-org \
+  --project-id infrastructure-project
+```
+
+<Note>
+  If not specified, org and project IDs are read from global CLI configuration set via `hc config` command.
+</Note>
+
+## Execution Workflow
+
+### Step-by-Step Process
+
+<Accordion title="1. Fetch Workspace Information">
+  The CLI retrieves workspace details:
+  - Default pipeline configuration
+  - Repository path settings
+  - Terraform version
+  - Authentication requirements
+
+  ```
+  ✓ Workspace found
+  The plan will execute with the default pipeline: iacm-default-plan...
+  ```
+</Accordion>
+
+<Accordion title="2. Validate Directory Structure">
+  The CLI determines what directory to upload based on:
+  - Current working directory
+  - Workspace folder path configuration
+  - Repository structure
+
+  ```
+  The workspace has no configured folder path,
+  Harness will upload the following directory and its contents
+  /path/to/terraform/project
+  ```
+</Accordion>
+
+<Accordion title="3. User Confirmation">
+  You confirm the upload before proceeding:
+  ```
+  Do you want to continue? (y/N): y
+  ```
+
+  Respond with `y` or `yes` to continue, any other input cancels.
+</Accordion>
+
+<Accordion title="4. Zip Source Code">
+  The CLI packages your directory:
+  - Respects `.gitignore` patterns
+  - Excludes `.git` directory
+  - Compresses for efficient upload
+
+  ```
+  ✓ Source code zipped (1.2 MB)
+  ```
+</Accordion>
+
+<Accordion title="5. Create Remote Execution">
+  The CLI creates an execution record in Harness:
+  - Allocates execution ID
+  - Prepares upload endpoint
+  - Configures custom arguments (targets, replacements)
+
+  ```
+  ✓ Remote execution created
+  ```
+</Accordion>
+
+<Accordion title="6. Upload Source Code">
+  The packaged code is uploaded to Harness:
+  - Uses multipart upload for large files
+  - Shows upload progress
+  - Verifies successful transfer
+
+  ```
+  ✓ Source code uploaded
+  ```
+</Accordion>
+
+<Accordion title="7. Trigger Pipeline">
+  The CLI triggers the workspace's default pipeline:
+  - Starts pipeline execution
+  - Returns execution URL
+  - Begins log streaming
+
+  ```
+  ✓ Pipeline execution triggered
+  Pipeline execution: https://app.harness.io/ng/account/.../executions/...
+  ```
+</Accordion>
+
+<Accordion title="8. Stream Logs">
+  Execution logs stream to your terminal:
+  - Follows stage progression
+  - Shows each step's output
+  - Updates in real-time
+  - Handles stage transitions
+
+  ```
+  === Pipeline Execution Logs ===
+  ========================== Starting stage Infrastructure ==========================
+  ========================== Starting step Terraform Init ==========================
+  Initializing modules...
+  Terraform has been successfully initialized!
+  ```
+</Accordion>
+
+### Log Streaming Details
+
+The CLI implements intelligent log streaming:
+
+**Stage Walking:**
+- Polls pipeline execution every 3 seconds
+- Discovers active stages in execution graph
+- Transitions between stages automatically
+- Tracks visited stages to avoid duplication
+
+**Step Walking:**
+- Polls stage execution every 1 second
+- Identifies active steps within current stage
+- Fetches logs for running and completed steps
+- Ignores internal orchestration steps
+
+**Log Fetching:**
+- For running steps: Uses tail API for streaming
+- For completed steps: Uses blob API for full logs
+- Handles log key extraction from execution nodes
+- Manages concurrent log streams for parallel steps
+
+## Examples
+
+### Basic Plan Execution
+
+```bash
+# Navigate to Terraform directory
+cd ~/projects/infrastructure
+
+# Execute remote plan
+hc iacm plan --workspace-id prod-workspace
+```
+
+### Plan with Specific Targets
+
+Plan changes to specific resources:
+
+```bash
+hc iacm plan --workspace-id prod-workspace \
+  --target aws_instance.app_server \
+  --target aws_lb.app_lb
+```
+
+### Plan with Variable Overrides
+
+Test configuration with different variables:
+
+```bash
+hc iacm plan --workspace-id staging-workspace \
+  --replace environment=staging \
+  --replace instance_count=3 \
+  --replace enable_debug=true
+```
+
+### Multi-Environment Workflow
+
+<CodeGroup>
+```bash Development
+hc iacm plan \
+  --workspace-id dev-workspace \
+  --org-id my-org \
+  --project-id dev-project \
+  --replace environment=dev
+```
+
+```bash Staging
+hc iacm plan \
+  --workspace-id staging-workspace \
+  --org-id my-org \
+  --project-id staging-project \
+  --replace environment=staging
+```
+
+```bash Production
+hc iacm plan \
+  --workspace-id prod-workspace \
+  --org-id my-org \
+  --project-id prod-project \
+  --replace environment=production
+```
+</CodeGroup>
+
+## CI/CD Integration
+
+### GitHub Actions
+
+```yaml .github/workflows/terraform-plan.yml
+name: Terraform Plan
+
+on:
+  pull_request:
+    paths:
+      - 'terraform/**'
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Install Harness CLI
+        run: |
+          curl -sSfL https://get.harness.io/cli | sh
+          echo "$HOME/.harness/bin" >> $GITHUB_PATH
+      
+      - name: Configure Harness CLI
+        env:
+          HARNESS_API_KEY: ${{ secrets.HARNESS_API_KEY }}
+          HARNESS_ACCOUNT_ID: ${{ secrets.HARNESS_ACCOUNT_ID }}
+        run: |
+          hc config set api-key $HARNESS_API_KEY
+          hc config set account-id $HARNESS_ACCOUNT_ID
+      
+      - name: Run Terraform Plan
+        run: |
+          cd terraform
+          hc iacm plan --workspace-id ${{ vars.WORKSPACE_ID }} <<EOF
+          y
+          EOF
+```
+
+### GitLab CI
+
+```yaml .gitlab-ci.yml
+terraform_plan:
+  stage: plan
+  image: ubuntu:latest
+  before_script:
+    - curl -sSfL https://get.harness.io/cli | sh
+    - export PATH="$HOME/.harness/bin:$PATH"
+    - hc config set api-key $HARNESS_API_KEY
+    - hc config set account-id $HARNESS_ACCOUNT_ID
+  script:
+    - cd terraform
+    - echo "y" | hc iacm plan --workspace-id $WORKSPACE_ID
+  only:
+    - merge_requests
+  variables:
+    HARNESS_API_KEY: $HARNESS_API_KEY
+    HARNESS_ACCOUNT_ID: $HARNESS_ACCOUNT_ID
+    WORKSPACE_ID: $WORKSPACE_ID
+```
+
+## Interrupting Execution
+
+Gracefully stop execution with `Ctrl+C`:
+
+```
+^C
+Interrupted. Cleaning up...
+```
+
+**Cleanup behavior:**
+- Stops log streaming immediately
+- Cancels context for all operations
+- Closes API connections
+- **Note**: Remote execution may continue on server
+
+<Warning>
+  Interrupting the CLI stops local log streaming but does not cancel the remote Terraform execution. The plan continues running on Harness servers.
+</Warning>
+
+To cancel remote execution:
+1. Use the Harness UI to abort the pipeline
+2. Or wait for execution to complete
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Workspace Not Found" icon="search">
+    **Error**: `failed to get workspace: workspace not found`
+
+    **Solutions**:
+    - Verify workspace ID is correct
+    - Check org and project IDs are set correctly
+    - Ensure you have access to the workspace
+    - List workspaces in Harness UI to find correct ID
+  </Accordion>
+
+  <Accordion title="No Default Pipeline" icon="diagram-project">
+    **Error**: `The workspace has no configured default pipeline`
+
+    **Solutions**:
+    - Configure default pipeline in workspace settings
+    - Set plan operation pipeline at workspace or project level
+    - Ensure pipeline has correct Terraform steps
+    - Verify pipeline is active and not deleted
+  </Accordion>
+
+  <Accordion title="Folder Path Not Found" icon="folder-open">
+    **Error**: `The folder path configured in the workspace terraform does not exist`
+
+    **Solutions**:
+    - Check workspace folder path configuration
+    - Run command from correct directory
+    - Verify repository structure matches configuration
+    - Update workspace folder path if moved
+  </Accordion>
+
+  <Accordion title="Upload Failures" icon="upload">
+    **Error**: `failed to upload source code`
+
+    **Solutions**:
+    - Check network connectivity
+    - Verify API key has upload permissions
+    - Ensure zip file size is within limits
+    - Try reducing directory size (remove node_modules, etc.)
+  </Accordion>
+
+  <Accordion title="Log Streaming Stops" icon="stream">
+    **Symptom**: Logs stop streaming mid-execution
+
+    **Solutions**:
+    - Check network connection
+    - Refresh log token if expired
+    - View logs in Harness UI as fallback
+    - Restart command to resume streaming
+  </Accordion>
+
+  <Accordion title="Authentication Errors" icon="key">
+    **Error**: `401 Unauthorized` or `failed to get log token`
+
+    **Solutions**:
+    - Verify API key is valid: `hc config get api-key`
+    - Check account ID is correct: `hc config get account-id`
+    - Regenerate API key in Harness UI
+    - Ensure service account has IACM permissions
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Use .gitignore" icon="git">
+    Ensure `.gitignore` excludes:
+    - `.terraform/` directory
+    - `*.tfstate` files
+    - `.terraform.lock.hcl`
+    - Secrets and credentials
+    
+    The CLI respects gitignore when zipping.
+  </Card>
+
+  <Card title="Confirm Before Upload" icon="check-circle">
+    Always review:
+    - Directory being uploaded
+    - Files included in zip
+    - Workspace configuration
+    - Repository path alignment
+    
+    Respond `n` if anything looks wrong.
+  </Card>
+
+  <Card title="Start with Small Directories" icon="folder">
+    For first-time usage:
+    - Test with small Terraform projects
+    - Verify workspace configuration
+    - Check log streaming works
+    - Then scale to larger projects
+  </Card>
+
+  <Card title="Monitor in Harness UI" icon="display">
+    While CLI streams logs:
+    - Open pipeline URL in browser
+    - Watch execution graph
+    - Review detailed step logs
+    - Access plan output files
+  </Card>
+</CardGroup>
+
+<CardGroup cols={2}>
+  <Card title="Use Workspaces Per Environment" icon="layer-group">
+    Create separate workspaces:
+    - `dev-workspace` for development
+    - `staging-workspace` for staging
+    - `prod-workspace` for production
+    
+    Each with appropriate pipelines and configs.
+  </Card>
+
+  <Card title="Set Org/Project in Config" icon="gears">
+    Configure once:
+    ```bash
+    hc config set org-id my-org
+    hc config set project-id my-project
+    ```
+    
+    Avoid repeating in every command.
+  </Card>
+
+  <Card title="Integrate with CI/CD" icon="robot">
+    Automate plan execution:
+    - Run on pull requests
+    - Comment results on PRs
+    - Gate merges on clean plans
+    - Track plan history
+  </Card>
+
+  <Card title="Handle Interruptions" icon="stop">
+    If you interrupt:
+    - Check Harness UI for execution status
+    - Cancel pipeline if needed
+    - Rerun if necessary
+    - Don't assume it stopped
+  </Card>
+</CardGroup>
+
+## Limitations
+
+<Warning>
+  Current limitations of IACM remote execution via CLI:
+</Warning>
+
+- **Plan only**: Currently supports plan operations, not apply
+- **No input prompts**: Terraform configurations requiring interactive input will fail
+- **Limited variable override**: Uses replace flags, doesn't support `.tfvars` files
+- **No local execution**: All plans run remotely on Harness infrastructure
+- **Pipeline dependency**: Requires pre-configured default pipeline
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configure Workspaces" icon="wrench" href="https://developer.harness.io/docs/infra-as-code-management">
+    Set up IACM workspaces in Harness
+  </Card>
+  <Card title="IACM Commands" icon="terminal" href="/reference/iacm">
+    View all IACM command options
+  </Card>
+</CardGroup>

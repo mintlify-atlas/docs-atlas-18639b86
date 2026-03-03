@@ -1,0 +1,393 @@
+---
+title: 'hc auth login'
+description: 'Authenticate with Harness services and save credentials'
+---
+
+## Usage
+
+```bash
+hc auth login [flags]
+```
+
+## Description
+
+The `hc auth login` command authenticates you with Harness services by validating your credentials and storing them locally for future use. The command supports both interactive and non-interactive modes, making it suitable for both manual use and automation.
+
+When you successfully log in, your credentials are saved to `~/.harness/auth.json` with restricted permissions (0600) and validated against the Harness API.
+
+## Authentication Flow
+
+1. **Credential Collection** - Gather API URL, token, and account information
+2. **Token Parsing** - Extract account ID from token (format: `pat.{AccountID}.{Random}.{Random}`)
+3. **Validation** - Verify credentials by calling the Harness API
+4. **Storage** - Save authentication configuration to disk
+5. **Session Setup** - Configure global settings for the current CLI session
+
+## Flags
+
+<ParamField path="--api-url" type="string" default="https://app.harness.io">
+  Harness API URL. Use this flag to connect to different Harness environments or self-hosted instances.
+  
+  Example values:
+  - `https://app.harness.io` (SaaS)
+  - `https://app3.harness.io` (SaaS EU)
+  - `https://your-domain.harness.io` (Custom domain)
+</ParamField>
+
+<ParamField path="--api-token" type="string" required>
+  Your Harness API authentication token. This should be a Personal Access Token (PAT) with appropriate permissions.
+  
+  Token format: `pat.{AccountID}.{Random}.{Random}`
+  
+  <Warning>
+    Keep your API token secure. Never commit it to version control or share it publicly.
+  </Warning>
+</ParamField>
+
+<ParamField path="--account" type="string">
+  Harness Account ID. If not provided in non-interactive mode, the CLI automatically extracts it from your API token.
+  
+  The account ID is typically a string like `abc123def456`.
+</ParamField>
+
+<ParamField path="--org" type="string">
+  Organization ID for scoping your CLI session. When set, commands will default to this organization context.
+  
+  This is optional and can be useful when you primarily work within a specific organization.
+</ParamField>
+
+<ParamField path="--project" type="string">
+  Project ID for scoping your CLI session. When set, commands will default to this project context.
+  
+  This is optional and can be useful when you primarily work within a specific project.
+</ParamField>
+
+<ParamField path="--non-interactive" type="boolean" default="false">
+  Disable interactive prompts. When enabled, all required values must be provided via flags.
+  
+  This is essential for automation, CI/CD pipelines, and scripts where user input is not possible.
+</ParamField>
+
+## Interactive Mode
+
+When you run `hc auth login` without required flags, the command enters interactive mode:
+
+```bash
+$ hc auth login
+Entering interactive login mode. Press Ctrl+C to cancel.
+API URL [https://app.harness.io]: 
+API Token: ••••••••••••••••••••
+AccountID from token: abc123def456
+Organization ID (optional): 
+Project ID (optional): 
+Validating credentials...
+✓ Credentials validated successfully
+Successfully logged into Harness
+API URL:      https://app.harness.io
+Account ID:   abc123def456
+```
+
+### Interactive Prompts
+
+1. **API URL** - Press Enter to use the default (`https://app.harness.io`) or enter a custom URL
+2. **API Token** - Enter your token (input is hidden for security)
+3. **Account ID** - Automatically extracted and displayed
+4. **Organization ID** - Optional, press Enter to skip
+5. **Project ID** - Optional, press Enter to skip
+
+## Non-Interactive Mode
+
+For automation and CI/CD environments, use the `--non-interactive` flag:
+
+<CodeGroup>
+```bash Basic Login
+hc auth login \
+  --api-token pat.abc123.xyz789.qwe456 \
+  --non-interactive
+```
+
+```bash With Organization
+hc auth login \
+  --api-token pat.abc123.xyz789.qwe456 \
+  --account abc123def456 \
+  --org my_org \
+  --non-interactive
+```
+
+```bash Full Scope
+hc auth login \
+  --api-url https://app.harness.io \
+  --api-token pat.abc123.xyz789.qwe456 \
+  --account abc123def456 \
+  --org my_org \
+  --project my_project \
+  --non-interactive
+```
+
+```bash Custom Harness Instance
+hc auth login \
+  --api-url https://harness.company.com \
+  --api-token pat.abc123.xyz789.qwe456 \
+  --non-interactive
+```
+</CodeGroup>
+
+## Environment Variables
+
+For enhanced security in automation, use environment variables:
+
+```bash
+export HARNESS_API_TOKEN="pat.abc123.xyz789.qwe456"
+export HARNESS_ACCOUNT_ID="abc123def456"
+export HARNESS_ORG_ID="my_org"
+export HARNESS_PROJECT_ID="my_project"
+
+hc auth login \
+  --api-token $HARNESS_API_TOKEN \
+  --account $HARNESS_ACCOUNT_ID \
+  --org $HARNESS_ORG_ID \
+  --project $HARNESS_PROJECT_ID \
+  --non-interactive
+```
+
+## Examples
+
+### First-Time Interactive Login
+
+```bash
+$ hc auth login
+Entering interactive login mode. Press Ctrl+C to cancel.
+API URL [https://app.harness.io]: 
+API Token: ••••••••••••••••••••
+AccountID from token: abc123def456
+Organization ID (optional): default
+Project ID (optional): myproject
+Validating credentials...
+✓ Credentials validated successfully
+Successfully logged into Harness
+API URL:      https://app.harness.io
+Account ID:   abc123def456
+Org ID:       default
+Project ID:   myproject
+```
+
+### Quick Login with Token Only
+
+```bash
+$ hc auth login --api-token pat.abc123.xyz789.qwe456
+Validating credentials...
+✓ Credentials validated successfully
+Successfully logged into Harness
+API URL:      https://app.harness.io
+Account ID:   abc123def456
+```
+
+### CI/CD Pipeline (GitHub Actions)
+
+```yaml .github/workflows/deploy.yml
+name: Deploy with Harness
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install Harness CLI
+        run: |
+          curl -o hc https://github.com/harness/harness-cli/releases/latest/download/hc-linux-amd64
+          chmod +x hc
+          sudo mv hc /usr/local/bin/
+      
+      - name: Login to Harness
+        env:
+          HARNESS_API_TOKEN: ${{ secrets.HARNESS_API_TOKEN }}
+        run: |
+          hc auth login \
+            --api-token $HARNESS_API_TOKEN \
+            --org ${{ vars.HARNESS_ORG_ID }} \
+            --project ${{ vars.HARNESS_PROJECT_ID }} \
+            --non-interactive
+      
+      - name: Deploy
+        run: hc pipeline execute --id my-pipeline
+```
+
+### Docker Container
+
+```dockerfile Dockerfile
+FROM alpine:latest
+
+RUN apk add --no-cache curl bash
+
+# Install Harness CLI
+RUN curl -L -o /usr/local/bin/hc \
+    https://github.com/harness/harness-cli/releases/latest/download/hc-linux-amd64 \
+    && chmod +x /usr/local/bin/hc
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+```
+
+```bash entrypoint.sh
+#!/bin/bash
+set -e
+
+# Login to Harness
+hc auth login \
+  --api-token "${HARNESS_API_TOKEN}" \
+  --account "${HARNESS_ACCOUNT_ID}" \
+  --org "${HARNESS_ORG_ID}" \
+  --project "${HARNESS_PROJECT_ID}" \
+  --non-interactive
+
+# Execute the passed command
+exec "$@"
+```
+
+### Switching Between Accounts
+
+```bash
+# Login to production account
+hc auth login --api-token $PROD_TOKEN --non-interactive
+
+# Work with production
+hc pipeline list
+
+# Switch to staging
+hc auth logout
+hc auth login --api-token $STAGING_TOKEN --non-interactive
+
+# Work with staging
+hc pipeline list
+```
+
+## Validation Process
+
+The login command validates your credentials by:
+
+1. Making an authenticated GET request to `/ng/api/accounts/{accountID}`
+2. Verifying the response status is 200 OK
+3. Parsing the account information from the response
+
+If validation fails, you'll see an error message:
+
+```bash
+Validating credentials...
+Error: credential validation failed: authentication failed with status 401 Unauthorized. Please check your credentials
+```
+
+## Stored Configuration
+
+After successful login, credentials are saved to `~/.harness/auth.json`:
+
+```json
+{
+  "base_url": "https://app.harness.io",
+  "token": "pat.abc123.xyz789.qwe456",
+  "account_id": "abc123def456",
+  "org_id": "default",
+  "project_id": "myproject"
+}
+```
+
+<Note>
+  The file is created with permissions `0600` (readable and writable only by the owner) for security.
+</Note>
+
+## Error Handling
+
+### Missing Required Fields
+
+```bash
+$ hc auth login --non-interactive
+Error: API token is required. Use --api-token flag or interactive mode
+```
+
+### Invalid Credentials
+
+```bash
+$ hc auth login --api-token invalid_token
+Validating credentials...
+Error: credential validation failed: authentication failed with status 401 Unauthorized. Please check your credentials
+```
+
+### Network Issues
+
+```bash
+$ hc auth login --api-token pat.abc123.xyz789.qwe456
+Validating credentials...
+Error: credential validation failed: error connecting to Harness API: dial tcp: lookup app.harness.io: no such host
+```
+
+### Token Format Issues
+
+```bash
+$ hc auth login --api-token wrong_format
+Validating credentials...
+Error: token does not contains accountID
+```
+
+## Best Practices
+
+1. **Use Environment Variables** - Store tokens in environment variables, not in scripts
+2. **Scope Your Session** - Use `--org` and `--project` flags to set default contexts
+3. **Validate After Login** - Run `hc auth status` to confirm successful authentication
+4. **Rotate Tokens Regularly** - Update your API tokens periodically for security
+5. **Use Non-Interactive in CI/CD** - Always use `--non-interactive` flag in automation
+6. **Keep Tokens Secret** - Never log or print your API token
+7. **One Account Per Session** - Logout before switching accounts
+
+## Security Considerations
+
+<Warning>
+  The authentication file contains sensitive credentials. Ensure proper file permissions and never commit it to version control.
+</Warning>
+
+- File permissions are automatically set to `0600`
+- Configuration directory (`~/.harness`) is created with `0755` permissions
+- API tokens are transmitted only over HTTPS
+- Credentials are validated before being saved
+- Password input is hidden in interactive mode
+
+## Related Commands
+
+- [hc auth status](/commands/auth/status) - Check authentication status
+- [hc auth logout](/commands/auth/logout) - Remove saved credentials
+
+## Troubleshooting
+
+### Can't Create Config Directory
+
+If you see "Error creating config directory":
+
+```bash
+# Check home directory permissions
+ls -la ~
+
+# Manually create the directory
+mkdir -p ~/.harness
+chmod 755 ~/.harness
+```
+
+### Timeout Errors
+
+Validation requests timeout after 10 seconds. If you experience timeouts:
+
+1. Check your network connection
+2. Verify firewall rules allow HTTPS to Harness
+3. Try using a different API URL if using a custom instance
+
+### API URL Issues
+
+Ensure your API URL:
+- Uses HTTPS protocol
+- Does not include trailing slashes
+- Points to the correct Harness environment
+- Includes the full domain name

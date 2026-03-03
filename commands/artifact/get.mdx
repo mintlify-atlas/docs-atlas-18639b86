@@ -1,0 +1,116 @@
+---
+title: hc artifact get
+description: Get detailed information about artifacts
+---
+
+## Synopsis
+
+Retrieves detailed information about a specific artifact or searches for artifacts by name in the Harness Artifact Registry.
+
+```bash
+hc artifact get [artifact-name] [flags]
+```
+
+## Arguments
+
+<ParamField path="artifact-name" type="string">
+  Optional artifact name to search for. If not provided, lists all artifacts.
+</ParamField>
+
+## Options
+
+<ParamField path="--registry" type="string">
+  Filter by registry name
+</ParamField>
+
+<ParamField path="--page-size" type="integer" default="10">
+  Number of items per page
+</ParamField>
+
+<ParamField path="--page" type="integer" default="0">
+  Page number (zero-indexed)
+</ParamField>
+
+## Output Format
+
+The command displays artifact information in a table format with:
+
+- **Artifact** - Name of the artifact
+- **Version** - Version number
+- **Package Type** - Type of package
+- **Registry** - Registry identifier
+- **Download Count** - Download statistics
+
+## Examples
+
+<CodeGroup>
+```bash Get specific artifact
+hc artifact get nginx --registry docker-registry
+```
+
+```bash Search for artifacts by name
+hc artifact get react
+```
+
+```bash Get artifact with pagination
+hc artifact get spring --registry maven-registry --page-size 20
+```
+
+```bash Get all artifacts in registry
+hc artifact get --registry npm-registry
+```
+</CodeGroup>
+
+## Search Behavior
+
+When you provide an artifact name, the command performs a search operation:
+
+- Partial matches are supported
+- Case-sensitive search
+- Returns all versions matching the search term
+
+## Output Example
+
+```
+Artifact    Version  Package Type  Registry         Download Count
+nginx       1.21.0   DOCKER        docker-registry  125
+nginx       1.20.2   DOCKER        docker-registry  98
+nginx       1.19.10  DOCKER        docker-registry  67
+
+Page: 0 | Total Pages: 1 | Total Items: 3
+```
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Find all versions of an artifact">
+    ```bash
+    hc artifact get my-app --registry docker-registry
+    ```
+    This returns all versions of `my-app` available in the registry.
+  </Accordion>
+
+  <Accordion title="Search across registries">
+    ```bash
+    hc artifact get library-name
+    ```
+    Omit the `--registry` flag to search across all registries in your account.
+  </Accordion>
+
+  <Accordion title="Verify artifact exists before pull">
+    ```bash
+    hc artifact get package-name --registry npm-registry
+    ```
+    Use this to verify an artifact exists before attempting to pull it.
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+The search uses the artifact name as a search term. If no artifacts match, an empty result set is returned.
+</Note>
+
+## See Also
+
+- [hc artifact list](/commands/artifact/list) - List all artifacts
+- [hc artifact pull](/commands/artifact/pull) - Pull artifacts
+- [hc artifact metadata get](/commands/artifact/metadata) - Get artifact metadata

@@ -1,0 +1,463 @@
+---
+title: hc artifact push
+description: Push artifacts to Harness Artifact Registry
+---
+
+## Synopsis
+
+Pushes artifacts to Harness Artifact Registry. The command supports multiple package types with type-specific subcommands.
+
+```bash
+hc artifact push <package-type> <registry-name> <file-path> [flags]
+```
+
+## Supported Package Types
+
+Select a package type to push:
+
+<Tabs>
+  <Tab title="Generic">
+    Push generic files of any type.
+
+    ### Usage
+    ```bash
+    hc artifact push generic <registry-name> <file-path> [flags]
+    ```
+
+    ### Options
+    <ParamField path="--name" type="string" required>
+      Name for the artifact
+    </ParamField>
+
+    <ParamField path="--version" type="string" default="1.0.0">
+      Version for the artifact
+    </ParamField>
+
+    <ParamField path="--filename" type="string">
+      Name of the file being uploaded (defaults to actual filename)
+    </ParamField>
+
+    <ParamField path="--path" type="string">
+      File path within the package (defaults to filename)
+    </ParamField>
+
+    <ParamField path="--description" type="string">
+      Description of the artifact
+    </ParamField>
+
+    <ParamField path="--pkg-url" type="string" required>
+      Base URL for the Packages API
+    </ParamField>
+
+    ### Examples
+    ```bash
+    hc artifact push generic my-registry ./config.json \
+      --name app-config \
+      --version 1.0.0 \
+      --pkg-url https://app.harness.io
+    ```
+
+    ```bash
+    hc artifact push generic my-registry ./archive.zip \
+      --name release-bundle \
+      --version 2.1.0 \
+      --path releases/archive.zip \
+      --pkg-url https://app.harness.io
+    ```
+  </Tab>
+
+  <Tab title="NPM">
+    Push NPM packages (.tgz).
+
+    ### Usage
+    ```bash
+    hc artifact push npm <registry-name> <npm-tgz-path> [flags]
+    ```
+
+    ### Options
+    <ParamField path="--pkg-url" type="string" required>
+      Base URL for the Packages API
+    </ParamField>
+
+    ### Package Requirements
+    - Must be a `.tgz` or `.tar.gz` file
+    - Must contain a valid `package.json` in the tarball
+    - Package name and version are extracted from `package.json`
+
+    ### Examples
+    ```bash
+    hc artifact push npm npm-registry ./my-package-1.0.0.tgz \
+      --pkg-url https://app.harness.io
+    ```
+
+    ```bash
+    # Using glob pattern
+    hc artifact push npm npm-registry ./*.tgz \
+      --pkg-url https://app.harness.io
+    ```
+
+    ### Process
+    1. Validates the tarball format
+    2. Extracts and parses `package.json`
+    3. Builds NPM upload payload
+    4. Uploads to registry
+  </Tab>
+
+  <Tab title="Maven">
+    Push Maven artifacts (.jar, .war).
+
+    ### Usage
+    ```bash
+    hc artifact push maven <registry-name> <file-path> [flags]
+    ```
+
+    ### Options
+    <ParamField path="--pom-file" type="string" required>
+      Path to the POM file (.xml or .pom)
+    </ParamField>
+
+    <ParamField path="--pkg-url" type="string" required>
+      Base URL for the Packages API
+    </ParamField>
+
+    ### Package Requirements
+    - Package must be `.jar` or `.war` file
+    - POM file must be `.xml` or `.pom`
+    - Package and POM must have matching coordinates (groupId, artifactId, version)
+    - SNAPSHOT versions are not currently supported
+
+    ### Examples
+    ```bash
+    hc artifact push maven maven-registry ./myapp-1.0.0.jar \
+      --pom-file ./pom.xml \
+      --pkg-url https://app.harness.io
+    ```
+
+    ```bash
+    hc artifact push maven maven-registry ./webapp-2.1.0.war \
+      --pom-file ./pom.xml \
+      --pkg-url https://app.harness.io
+    ```
+
+    ### Process
+    1. Validates Maven coordinates from both package and POM
+    2. Generates MD5 and SHA1 checksums
+    3. Uploads package, POM, and checksum files
+    4. Updates or creates `maven-metadata.xml`
+
+    <Note>
+    The command automatically handles checksum generation and maven-metadata.xml updates.
+    </Note>
+  </Tab>
+
+  <Tab title="Python">
+    Push Python packages (.whl, .tar.gz).
+
+    ### Usage
+    ```bash
+    hc artifact push python <registry-name> <file-or-folder-path> [flags]
+    ```
+
+    ### Options
+    <ParamField path="--pkg-url" type="string" required>
+      Base URL for the Packages API
+    </ParamField>
+
+    ### Package Requirements
+    - Wheel files: `.whl` with METADATA in `.dist-info/`
+    - Source distributions: `.tar.gz` with PKG-INFO
+    - Must contain valid Name and Version metadata
+
+    ### Examples
+    ```bash
+    # Push single wheel file
+    hc artifact push python pypi-registry ./mypackage-1.0.0-py3-none-any.whl \
+      --pkg-url https://app.harness.io
+    ```
+
+    ```bash
+    # Push entire dist folder
+    hc artifact push python pypi-registry ./dist \
+      --pkg-url https://app.harness.io
+    ```
+
+    ```bash
+    # Push source distribution
+    hc artifact push python pypi-registry ./mypackage-1.0.0.tar.gz \
+      --pkg-url https://app.harness.io
+    ```
+
+    ### Folder Upload
+    When providing a folder path:
+    - Scans for all `.whl` and `.tar.gz` files
+    - Skips subdirectories
+    - Uploads each package individually
+    - Shows progress for each file
+  </Tab>
+
+  <Tab title="Go">
+    Push Go modules.
+
+    ### Usage
+    ```bash
+    hc artifact push go <registry-name> <folder-path> [flags]
+    ```
+
+    ### Options
+    <ParamField path="--version" type="string" required>
+      Version for the Go package
+    </ParamField>
+
+    <ParamField path="--pkg-url" type="string">
+      Base URL for the Packages API
+    </ParamField>
+
+    ### Package Requirements
+    - Folder must contain valid Go module files
+    - Must have `go.mod` file
+    - Version must follow semantic versioning
+
+    ### Examples
+    ```bash
+    hc artifact push go go-registry ./mymodule \
+      --version v1.2.3 \
+      --pkg-url https://app.harness.io
+    ```
+
+    ### Process
+    1. Generates `.mod`, `.info`, and `.zip` files
+    2. Creates multipart form with all three files
+    3. Uploads to registry
+
+    <Note>
+    The command automatically generates the required Go module artifacts from your source code.
+    </Note>
+  </Tab>
+
+  <Tab title="NuGet">
+    Push NuGet packages (.nupkg).
+
+    ### Usage
+    ```bash
+    hc artifact push nuget <registry-name> <file-path> [flags]
+    ```
+
+    ### Options
+    <ParamField path="--path" type="string">
+      Nested directory path within the registry
+    </ParamField>
+
+    <ParamField path="--pkg-url" type="string" required>
+      Base URL for the Packages API
+    </ParamField>
+
+    ### Package Requirements
+    - Must be `.nupkg` file
+    - Must contain valid NuGet package metadata
+
+    ### Examples
+    ```bash
+    hc artifact push nuget nuget-registry ./MyPackage.1.0.0.nupkg \
+      --pkg-url https://app.harness.io
+    ```
+
+    ```bash
+    # Push to nested path
+    hc artifact push nuget nuget-registry ./MyPackage.1.0.0.nupkg \
+      --path myorg/packages \
+      --pkg-url https://app.harness.io
+    ```
+
+    ```bash
+    # Using glob pattern
+    hc artifact push nuget nuget-registry ./*.nupkg \
+      --pkg-url https://app.harness.io
+    ```
+  </Tab>
+
+  <Tab title="Cargo">
+    Push Rust Cargo packages (.crate).
+
+    ### Usage
+    ```bash
+    hc artifact push cargo <registry-name> <file-path> [flags]
+    ```
+
+    ### Options
+    <ParamField path="--pkg-url" type="string">
+      Base URL for the Packages API
+    </ParamField>
+
+    ### Package Requirements
+    - Must be `.crate` file
+    - Must contain valid `Cargo.toml` with package name and version
+
+    ### Examples
+    ```bash
+    hc artifact push cargo cargo-registry ./mypackage-1.0.0.crate \
+      --pkg-url https://app.harness.io
+    ```
+
+    ```bash
+    # Using glob pattern
+    hc artifact push cargo cargo-registry ./*.crate \
+      --pkg-url https://app.harness.io
+    ```
+
+    ### Process
+    1. Extracts metadata from Cargo.toml
+    2. Creates Cargo-specific upload payload
+    3. Uploads with proper binary format
+  </Tab>
+
+  <Tab title="Dart">
+    Push Dart/Flutter packages (.tar.gz).
+
+    ### Usage
+    ```bash
+    hc artifact push dart <registry-name> <dart-tar-gz-path> [flags]
+    ```
+
+    ### Options
+    <ParamField path="--pkg-url" type="string" required>
+      Base URL for the Packages API
+    </ParamField>
+
+    ### Package Requirements
+    - Must be `.tar.gz` or `.tgz` file
+    - Must contain valid `pubspec.yaml`
+    - Package name and version extracted from pubspec.yaml
+
+    ### Examples
+    ```bash
+    hc artifact push dart dart-registry ./mypackage-1.0.0.tar.gz \
+      --pkg-url https://app.harness.io
+    ```
+
+    ```bash
+    # Using glob pattern
+    hc artifact push dart dart-registry ./*.tar.gz \
+      --pkg-url https://app.harness.io
+    ```
+
+    ### Process
+    1. Extracts and validates pubspec.yaml
+    2. Creates multipart upload with unique ID
+    3. Streams package content to registry
+  </Tab>
+
+  <Tab title="Composer">
+    Push PHP Composer packages.
+
+    ### Usage
+    ```bash
+    hc artifact push composer <registry-name> <file-path> [flags]
+    ```
+
+    ### Options
+    <ParamField path="--pkg-url" type="string">
+      Base URL for the Packages API
+    </ParamField>
+
+    ### Package Requirements
+    - Must contain valid `composer.json`
+    - Package name and version required in metadata
+  </Tab>
+
+  <Tab title="Conda">
+    Push Conda packages.
+
+    ### Usage
+    ```bash
+    hc artifact push conda <registry-name> <file-path> [flags]
+    ```
+
+    ### Options
+    <ParamField path="--pkg-url" type="string">
+      Base URL for the Packages API
+    </ParamField>
+  </Tab>
+
+  <Tab title="RPM">
+    Push RPM packages.
+
+    ### Usage
+    ```bash
+    hc artifact push rpm <registry-name> <file-path> [flags]
+    ```
+
+    ### Options
+    <ParamField path="--pkg-url" type="string">
+      Base URL for the Packages API
+    </ParamField>
+  </Tab>
+</Tabs>
+
+## Common Features
+
+### Glob Pattern Support
+
+Many package types support glob patterns for file selection:
+
+```bash
+# Push all .tgz files
+hc artifact push npm npm-registry ./*.tgz --pkg-url https://app.harness.io
+
+# Push all .nupkg files
+hc artifact push nuget nuget-registry ./*.nupkg --pkg-url https://app.harness.io
+```
+
+### Progress Tracking
+
+All push commands show real-time progress:
+
+```
+Validating input parameters... ✓
+Extracting package metadata... ✓
+Uploading package to registry... [=====>    ] 54%
+```
+
+## Error Handling
+
+<AccordionGroup>
+  <Accordion title="Invalid file format">
+    ```
+    Error: failed to validate package file name: unsupported extension: .txt
+    ```
+    Ensure you're pushing the correct file type for the package format.
+  </Accordion>
+
+  <Accordion title="Missing metadata">
+    ```
+    Error: package.json must contain non-empty 'name' and 'version'
+    ```
+    Verify your package contains required metadata files with valid content.
+  </Accordion>
+
+  <Accordion title="Coordinate mismatch (Maven)">
+    ```
+    Error: version mismatch: package="1.0.0", pom="1.0.1"
+    ```
+    Ensure your POM file matches the package file coordinates exactly.
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<Note>
+**Always verify your package** - Use appropriate package build tools before pushing to ensure metadata is correct.
+</Note>
+
+<Tip>
+**Use semantic versioning** - Follow SemVer (e.g., 1.0.0, 2.1.3) for consistent version management.
+</Tip>
+
+<Warning>
+**SNAPSHOT versions** - Maven SNAPSHOT versions are not currently supported via CLI.
+</Warning>
+
+## See Also
+
+- [hc artifact pull](/commands/artifact/pull) - Pull artifacts from registry
+- [hc artifact list](/commands/artifact/list) - List pushed artifacts
+- [hc artifact metadata set](/commands/artifact/metadata) - Add metadata to artifacts

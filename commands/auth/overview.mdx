@@ -1,0 +1,180 @@
+---
+title: 'Authentication Commands'
+description: 'Manage authentication with Harness services using the Harness CLI'
+---
+
+## Overview
+
+The `hc auth` command group provides authentication management for the Harness CLI. These commands allow you to securely authenticate with Harness services, manage your credentials, and check your authentication status.
+
+## Authentication Storage
+
+Credentials are stored securely in `~/.harness/auth.json` with restricted file permissions (0600). The authentication file contains:
+
+- API Base URL
+- Authentication Token
+- Account ID
+- Organization ID (optional)
+- Project ID (optional)
+
+<Note>
+  The authentication token is stored locally and never transmitted except during API calls to Harness services.
+</Note>
+
+## Available Commands
+
+### login
+
+Authenticate with Harness services and save credentials for future use. Supports both interactive and non-interactive modes.
+
+```bash
+hc auth login
+```
+
+[Learn more about login →](/commands/auth/login)
+
+### logout
+
+Remove saved credentials and clear your authentication session.
+
+```bash
+hc auth logout
+```
+
+[Learn more about logout →](/commands/auth/logout)
+
+### status
+
+Check your current authentication status and verify credentials with the Harness API.
+
+```bash
+hc auth status
+```
+
+[Learn more about status →](/commands/auth/status)
+
+## Authentication Methods
+
+### Interactive Mode
+
+When you run `hc auth login` without flags, the CLI enters interactive mode and prompts you for:
+
+1. **API URL** - The Harness API endpoint (defaults to `https://app.harness.io`)
+2. **API Token** - Your personal access token (input is hidden)
+3. **Account ID** - Automatically extracted from the token
+4. **Organization ID** - Optional scope for your session
+5. **Project ID** - Optional scope for your session
+
+### Non-Interactive Mode
+
+For automation and CI/CD pipelines, use flags to provide credentials:
+
+```bash
+hc auth login \
+  --api-url https://app.harness.io \
+  --api-token $HARNESS_TOKEN \
+  --account $HARNESS_ACCOUNT_ID \
+  --non-interactive
+```
+
+## Token Format
+
+Harness API tokens follow the format: `pat.{AccountID}.{Random}.{Random}`
+
+The CLI automatically extracts the Account ID from your token, so you typically don't need to provide it separately in interactive mode.
+
+## Security Best Practices
+
+<Warning>
+  Never commit your authentication file or tokens to version control. Add `~/.harness/` to your `.gitignore` file.
+</Warning>
+
+- Store tokens as environment variables in CI/CD systems
+- Use non-interactive mode for automation
+- Regularly rotate your API tokens
+- Use organization and project-scoped tokens when possible
+- Run `hc auth logout` when switching accounts
+
+## Configuration Precedence
+
+The CLI looks for credentials in the following order:
+
+1. Command-line flags (e.g., `--api-token`)
+2. Environment variables
+3. Saved authentication file (`~/.harness/auth.json`)
+
+## Examples
+
+### First-time Setup
+
+```bash
+# Interactive login with prompts
+hc auth login
+
+# Check authentication status
+hc auth status
+```
+
+### Switching Accounts
+
+```bash
+# Logout from current account
+hc auth logout
+
+# Login to different account
+hc auth login --api-token $NEW_TOKEN --account $NEW_ACCOUNT_ID
+```
+
+### CI/CD Pipeline
+
+```bash
+# Non-interactive login in CI environment
+hc auth login \
+  --api-token $HARNESS_API_TOKEN \
+  --account $HARNESS_ACCOUNT_ID \
+  --org $HARNESS_ORG_ID \
+  --project $HARNESS_PROJECT_ID \
+  --non-interactive
+```
+
+## Troubleshooting
+
+### Validation Failed
+
+If credential validation fails during login:
+
+1. Verify your token is valid and not expired
+2. Check that the API URL is correct
+3. Ensure your account ID matches the token
+4. Verify network connectivity to Harness services
+
+### Not Logged In
+
+If commands report you're not logged in:
+
+```bash
+# Check if auth file exists
+ls -la ~/.harness/auth.json
+
+# Try logging in again
+hc auth login
+```
+
+### Permission Issues
+
+If you encounter permission errors:
+
+```bash
+# Ensure the config directory exists with correct permissions
+mkdir -p ~/.harness
+chmod 755 ~/.harness
+```
+
+## Related Commands
+
+After authenticating, you can use other Harness CLI commands:
+
+- `hc project` - Manage projects
+- `hc pipeline` - Manage pipelines
+- `hc service` - Manage services
+- `hc secret` - Manage secrets

@@ -1,0 +1,449 @@
+---
+title: "Frequently Asked Questions"
+description: "Common questions about Harness CLI"
+---
+
+## General Questions
+
+<AccordionGroup>
+  <Accordion title="What is Harness CLI (hc)?">
+    Harness CLI is a command-line interface tool that provides unified access to Harness services. It follows a consistent, resource-based command structure for interacting with Harness Artifact Registry, Infrastructure as Code Management (IaCM), and other Harness platform services.
+    
+    The CLI enables automation, scripting, and integration with CI/CD pipelines.
+  </Accordion>
+
+  <Accordion title="Which Harness services does the CLI support?">
+    Currently, the CLI supports:
+    - **Authentication**: Login, logout, and session management
+    - **Artifact Registry (AR)**: Manage registries and artifacts
+    - **Infrastructure as Code Management (IaCM)**: Terraform operations
+    - **Projects and Organizations**: Resource management (coming soon)
+    - **API Passthrough**: Direct REST API access for power users (coming soon)
+  </Accordion>
+
+  <Accordion title="What platforms are supported?">
+    The CLI is built with Go and supports:
+    - **Linux**: x86_64, ARM64
+    - **macOS**: Intel and Apple Silicon (M1/M2)
+    - **Windows**: x86_64
+    
+    The installation script automatically detects your OS and architecture.
+  </Accordion>
+
+  <Accordion title="Is the CLI open source?">
+    Yes! Harness CLI is open source under the MIT License. You can:
+    - View the source code on [GitHub](https://github.com/harness/harness-cli)
+    - Contribute improvements and bug fixes
+    - Report issues and request features
+    
+    See the [Contributing guide](/contributing) for more details.
+  </Accordion>
+</AccordionGroup>
+
+## Installation and Setup
+
+<AccordionGroup>
+  <Accordion title="How do I install the CLI?">
+    **Quick Install (Recommended):**
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/harness/harness-cli/v2/install | sh
+    ```
+    
+    **Alternative Methods:**
+    - Download binary from [releases page](https://github.com/harness/harness-cli/releases)
+    - Build from source: `make build`
+    - Custom installation directory:
+      ```bash
+      curl -fsSL https://raw.githubusercontent.com/harness/harness-cli/v2/install | INSTALL_DIR=$HOME/.local/bin sh
+      ```
+  </Accordion>
+
+  <Accordion title="Where does the CLI store configuration?">
+    Configuration is stored at:
+    ```
+    $HOME/.harness/auth.json
+    ```
+    
+    This file contains:
+    - API base URL
+    - Authentication token
+    - Account ID
+    - Default organization and project (optional)
+    
+    The file has restricted permissions (0600) for security.
+  </Accordion>
+
+  <Accordion title="Can I use multiple accounts or profiles?">
+    Currently, the CLI supports one authenticated session at a time. To switch accounts:
+    
+    ```bash
+    hc auth logout
+    hc auth login --api-token <new-token> --account <new-account-id>
+    ```
+    
+    For advanced use cases, you can:
+    - Use different tokens via command-line flags:
+      ```bash
+      hc registry list --token <token> --account <account-id>
+      ```
+    - Maintain multiple configuration files and swap them manually
+  </Accordion>
+
+  <Accordion title="Do I need to authenticate for every command?">
+    No. After running `hc auth login`, your credentials are saved and automatically used for subsequent commands.
+    
+    You only need to re-authenticate if:
+    - Your token expires
+    - You logout explicitly
+    - You switch accounts
+    - You want to override saved credentials with command-line flags
+  </Accordion>
+</AccordionGroup>
+
+## Authentication
+
+<AccordionGroup>
+  <Accordion title="How do I generate an API token?">
+    To create an API token:
+    
+    1. Log into the Harness platform (https://app.harness.io)
+    2. Navigate to your profile settings
+    3. Go to "API Keys" or "Personal Access Tokens"
+    4. Click "Create Token" or "New API Key"
+    5. Give it a name and select appropriate scopes
+    6. Copy the generated token (you won't see it again)
+    
+    Then use it with the CLI:
+    ```bash
+    hc auth login --api-token <your-token>
+    ```
+  </Accordion>
+
+  <Accordion title="What token format does the CLI expect?">
+    The CLI expects tokens in the format:
+    ```
+    pat.AccountID.RandomString.RandomString
+    ```
+    
+    The CLI automatically extracts the Account ID from this format. If your token format is different, you'll need to provide the Account ID explicitly:
+    ```bash
+    hc auth login --api-token <token> --account <account-id>
+    ```
+  </Accordion>
+
+  <Accordion title="Can I use environment variables for authentication?">
+    Environment variable support is coming soon. Currently, you can:
+    
+    1. Save credentials via `hc auth login` (recommended)
+    2. Use command-line flags:
+       ```bash
+       hc registry list --token <token> --account <account-id>
+       ```
+    3. Script token passing:
+       ```bash
+       TOKEN=$(cat token.txt)
+       hc registry list --token $TOKEN --account <account-id>
+       ```
+  </Accordion>
+
+  <Accordion title="How do I check my current authentication status?">
+    Use the status command:
+    ```bash
+    hc auth status
+    ```
+    
+    This displays:
+    - Current authentication state
+    - API URL
+    - Account ID
+    - Organization ID (if set)
+    - Project ID (if set)
+  </Accordion>
+</AccordionGroup>
+
+## Usage
+
+<AccordionGroup>
+  <Accordion title="What is the general command structure?">
+    All CLI commands follow this pattern:
+    ```bash
+    hc [global-flags] <command> <subcommand> [args] [flags]
+    ```
+    
+    **Examples:**
+    ```bash
+    hc auth login
+    hc registry list --format json
+    hc artifact push generic my-registry ./file.tar.gz --version 1.0.0
+    hc artifact list --registry my-registry
+    ```
+    
+    See the [Command Reference](/commands/auth/overview) for all available commands.
+  </Accordion>
+
+  <Accordion title="How do I view command help?">
+    Add `--help` or `-h` to any command:
+    ```bash
+    hc --help                    # All commands
+    hc registry --help           # Registry commands
+    hc artifact push --help      # Push command details
+    ```
+  </Accordion>
+
+  <Accordion title="Can I output results in JSON format?">
+    Yes! Use the `--format` flag:
+    ```bash
+    hc registry list --format json
+    hc artifact list --registry my-reg --format json
+    ```
+    
+    This is useful for:
+    - Scripting and automation
+    - Parsing with tools like `jq`
+    - Integration with other systems
+    
+    Default format is `table` for human-readable output.
+  </Accordion>
+
+  <Accordion title="How do I specify organization and project scope?">
+    Use global flags to set scope:
+    ```bash
+    hc registry list --org <org-id> --project <project-id>
+    ```
+    
+    You can set defaults during login:
+    ```bash
+    hc auth login --org <org-id> --project <project-id>
+    ```
+    
+    Command-line flags always override saved defaults.
+  </Accordion>
+
+  <Accordion title="Can I use command aliases?">
+    Yes! Several commands have shorter aliases:
+    - `hc reg` = `hc registry`
+    - `hc art` = `hc artifact`
+    - `hc proj` = `hc project`
+    - `hc org` = `hc organisation`
+    
+    Example:
+    ```bash
+    hc reg list        # Same as: hc registry list
+    hc art list        # Same as: hc artifact list
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Artifact Registry
+
+<AccordionGroup>
+  <Accordion title="What package types are supported?">
+    Harness Artifact Registry supports:
+    - Docker / OCI containers
+    - Generic (any file type)
+    - Go modules
+    - npm (Node.js)
+    - Maven (Java)
+    - Python (PyPI)
+    - NuGet (.NET)
+    - Cargo (Rust)
+    - Composer (PHP)
+    - Conda (Python/R)
+    - Dart (Pub)
+    - RPM (Red Hat)
+    
+    See [Package Types](/packages/docker) for detailed documentation.
+  </Accordion>
+
+  <Accordion title="How do I push artifacts to a registry?">
+    Use the `artifact push` command with the appropriate package type:
+    
+    ```bash
+    # Generic artifacts
+    hc artifact push generic <registry> <file-path> \
+      --name <artifact-name> \
+      --version <version>
+    
+    # Go modules
+    hc artifact push go <registry> <module-path>
+    
+    # Other package types
+    hc artifact push maven <registry> <pom-file>
+    hc artifact push npm <registry> <package-directory>
+    ```
+    
+    See the [Artifact Management guide](/guides/artifact-management) for examples.
+  </Accordion>
+
+  <Accordion title="Can I migrate artifacts from other registries?">
+    Yes! The CLI includes a migration tool for moving artifacts from:
+    - JFrog Artifactory
+    - Sonatype Nexus
+    - Other registries
+    
+    Create a migration configuration file and run:
+    ```bash
+    hc registry migrate --config migrate-config.yaml
+    ```
+    
+    See the [Registry Migration guide](/guides/registry-migration) for details.
+  </Accordion>
+
+  <Accordion title="How do I delete artifacts or versions?">
+    To delete all versions of an artifact:
+    ```bash
+    hc artifact delete <artifact-name> --registry <registry-name>
+    ```
+    
+    To delete a specific version:
+    ```bash
+    hc artifact delete <artifact-name> \
+      --registry <registry-name> \
+      --version <version>
+    ```
+    
+    <Warning>
+      Deletions are permanent and cannot be undone. Use with caution.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="Can I configure my local package manager to use Harness registries?">
+    Yes! Use the configure command for supported package types:
+    
+    ```bash
+    # Configure npm
+    hc registry configure npm <registry-name>
+    
+    # More package types coming soon
+    ```
+    
+    This updates your local package manager configuration to point to Harness registries.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="How do I enable debug logging?">
+    Use the `--log-file` flag to save detailed logs:
+    ```bash
+    hc registry list --log-file debug.log
+    ```
+    
+    This captures:
+    - API requests and responses
+    - Error details
+    - Timing information
+    
+    Useful for diagnosing issues or reporting bugs.
+  </Accordion>
+
+  <Accordion title="Why am I getting authentication errors?">
+    Common causes:
+    1. Token expired - Re-authenticate with `hc auth login`
+    2. Invalid token - Verify token in Harness platform
+    3. Insufficient permissions - Check token scopes
+    4. Wrong account/org/project - Verify with `hc auth status`
+    
+    See [Troubleshooting - Authentication Errors](/troubleshooting#authentication-errors) for detailed solutions.
+  </Accordion>
+
+  <Accordion title="Commands are timing out or very slow">
+    Possible causes:
+    - Network connectivity issues
+    - Large artifact transfers
+    - High migration concurrency
+    
+    Solutions:
+    - Check network connection to Harness endpoints
+    - Reduce migration concurrency:
+      ```bash
+      hc registry migrate --config migrate.yaml --concurrency 5
+      ```
+    - Split large operations into smaller batches
+    
+    See [Troubleshooting - Connection Issues](/troubleshooting#connection-issues).
+  </Accordion>
+
+  <Accordion title="Where can I get help?">
+    Resources:
+    - **Documentation**: Full guides and reference at this site
+    - **GitHub Issues**: [Report bugs](https://github.com/harness/harness-cli/issues)
+    - **Community**: Join Harness community discussions
+    - **Troubleshooting Guide**: [Common issues and solutions](/troubleshooting)
+  </Accordion>
+</AccordionGroup>
+
+## Development and Contributing
+
+<AccordionGroup>
+  <Accordion title="How can I contribute to the CLI?">
+    We welcome contributions! Here's how:
+    
+    1. Fork the repository on GitHub
+    2. Create a feature branch
+    3. Make your changes
+    4. Run tests: `make test`
+    5. Submit a pull request
+    
+    See the [Contributing guide](/contributing) for detailed instructions.
+  </Accordion>
+
+  <Accordion title="How do I build the CLI from source?">
+    Requirements:
+    - Go 1.21 or later
+    - Make
+    
+    Steps:
+    ```bash
+    git clone https://github.com/harness/harness-cli.git
+    cd harness-cli
+    make build
+    ```
+    
+    The binary will be created as `./hc`.
+  </Accordion>
+
+  <Accordion title="How do I run tests?">
+    Run the test suite:
+    ```bash
+    make test
+    ```
+    
+    Run linter:
+    ```bash
+    make lint
+    ```
+    
+    Format code:
+    ```bash
+    make format
+    ```
+  </Accordion>
+
+  <Accordion title="What is the project structure?">
+    ```
+    harness-cli/
+    ├── api/              # OpenAPI specs for each service
+    ├── cmd/              # CLI commands implementation
+    │   ├── hc/           # Main CLI entry point
+    │   ├── auth/         # Authentication commands
+    │   ├── registry/     # Registry management
+    │   ├── artifact/     # Artifact management
+    │   └── ...
+    ├── config/           # Configuration handling
+    ├── internal/         # Internal packages and API clients
+    ├── module/           # Service-specific modules
+    ├── tools/            # Development tools
+    └── util/             # Utility functions
+    ```
+    
+    See the [Contributing guide](/contributing#project-structure) for more details.
+  </Accordion>
+</AccordionGroup>
+
+## Still Have Questions?
+
+<Card title="Contact Support" icon="question" href="/troubleshooting">
+  Check the troubleshooting guide or reach out to the community for help.
+</Card>

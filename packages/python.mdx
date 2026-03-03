@@ -1,0 +1,256 @@
+---
+title: Python packages
+description: Publish and install Python packages with Harness Artifact Registry
+---
+
+Harness Artifact Registry provides full support for Python packages, compatible with pip, allowing you to host private Python libraries.
+
+## Overview
+
+Python registry features:
+- PyPI-compatible repository protocol
+- Support for wheel (`.whl`) and source distributions (`.tar.gz`)
+- Folder uploads for multiple distribution files
+- Version management
+- Integration with pip, poetry, and other Python package managers
+
+## Pushing Python packages
+
+Use the `hc artifact push python` command:
+
+```bash
+hc artifact push python <registry-name> <package-path> \
+  --pkg-url <pkg-url>
+```
+
+### Supported formats
+
+<Tabs>
+  <Tab title="Wheel (.whl)">
+    Binary distribution format:
+    ```bash
+    hc artifact push python my-registry ./dist/mypackage-1.0.0-py3-none-any.whl \
+      --pkg-url https://app.harness.io/registry/pkg
+    ```
+  </Tab>
+  
+  <Tab title="Source (.tar.gz)">
+    Source distribution format:
+    ```bash
+    hc artifact push python my-registry ./dist/mypackage-1.0.0.tar.gz \
+      --pkg-url https://app.harness.io/registry/pkg
+    ```
+  </Tab>
+  
+  <Tab title="Folder">
+    Upload all distributions in a folder:
+    ```bash
+    hc artifact push python my-registry ./dist/ \
+      --pkg-url https://app.harness.io/registry/pkg
+    ```
+  </Tab>
+</Tabs>
+
+## Building Python packages
+
+<Steps>
+  <Step title="Prepare your package">
+    Ensure you have a proper `setup.py` or `pyproject.toml`:
+    
+    ```python setup.py
+    from setuptools import setup, find_packages
+    
+    setup(
+        name="mypackage",
+        version="1.0.0",
+        packages=find_packages(),
+        install_requires=[],
+    )
+    ```
+  </Step>
+  
+  <Step title="Build distributions">
+    Build wheel and source distributions:
+    
+    ```bash
+    # Install build tools
+    pip install build
+    
+    # Build both wheel and sdist
+    python -m build
+    ```
+  </Step>
+  
+  <Step title="Upload to registry">
+    Push the distributions:
+    
+    ```bash
+    hc artifact push python my-registry ./dist/ \
+      --pkg-url https://app.harness.io/registry/pkg
+    ```
+  </Step>
+</Steps>
+
+## Installing Python packages
+
+Configure pip to use your Harness registry:
+
+### Using pip configuration
+
+Create or edit `~/.pip/pip.conf` (Linux/macOS) or `%APPDATA%\pip\pip.ini` (Windows):
+
+```ini
+[global]
+index-url = https://<username>:<token>@<registry-url>/simple
+```
+
+### Using environment variables
+
+```bash
+export PIP_INDEX_URL=https://<username>:<token>@<registry-url>/simple
+pip install mypackage
+```
+
+### Per-command authentication
+
+```bash
+pip install mypackage --index-url https://<username>:<token>@<registry-url>/simple
+```
+
+## Examples
+
+<CodeGroup>
+
+```bash Single wheel
+# Build and push a wheel
+python -m build --wheel
+hc artifact push python my-registry ./dist/mypackage-1.0.0-py3-none-any.whl \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash All distributions
+# Build and push both wheel and sdist
+python -m build
+hc artifact push python my-registry ./dist/ \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash Specific Python version
+# Build for specific Python version
+python3.11 -m build
+hc artifact push python my-registry ./dist/ \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+</CodeGroup>
+
+## Using Poetry
+
+Configure Poetry to use your Harness registry:
+
+```bash
+# Add repository
+poetry config repositories.harness https://<registry-url>/simple
+
+# Set credentials
+poetry config http-basic.harness <username> <token>
+
+# Publish
+poetry build
+poetry publish --repository harness
+```
+
+Or use the CLI:
+
+```bash
+poetry build
+hc artifact push python my-registry ./dist/ \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+## Package naming conventions
+
+Python package filenames follow strict conventions:
+
+### Wheel format
+```
+{distribution}-{version}[-{build}]-{python}-{abi}-{platform}.whl
+```
+
+Example: `mypackage-1.0.0-py3-none-any.whl`
+
+### Source distribution format
+```
+{distribution}-{version}.tar.gz
+```
+
+Example: `mypackage-1.0.0.tar.gz`
+
+## CI/CD integration
+
+<Tabs>
+  <Tab title="GitHub Actions">
+    ```yaml
+    - name: Build and publish
+      run: |
+        pip install build
+        python -m build
+        hc artifact push python my-registry ./dist/ \
+          --pkg-url https://app.harness.io/registry/pkg
+      env:
+        HARNESS_API_KEY: ${{ secrets.HARNESS_API_KEY }}
+    ```
+  </Tab>
+  
+  <Tab title="GitLab CI">
+    ```yaml
+    publish:
+      script:
+        - pip install build
+        - python -m build
+        - hc artifact push python my-registry ./dist/ --pkg-url $PKG_URL
+      variables:
+        HARNESS_API_KEY: $HARNESS_TOKEN
+    ```
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+<Accordion title="Unsupported file type">
+  Only `.whl` and `.tar.gz` files are supported:
+  
+  ```bash
+  # ❌ Wrong
+  hc artifact push python my-registry ./mypackage.zip
+  
+  # ✅ Correct
+  python -m build  # Generates .whl and .tar.gz
+  hc artifact push python my-registry ./dist/
+  ```
+</Accordion>
+
+<Accordion title="Package name extraction failed">
+  Ensure your wheel/sdist follows Python naming conventions:
+  
+  ```bash
+  # Verify build output
+  python -m build --sdist --wheel --outdir dist/
+  ls -la dist/
+  ```
+</Accordion>
+
+<Accordion title="Authentication failed during pip install">
+  Check your index URL includes credentials:
+  
+  ```bash
+  # Test access
+  curl -u username:token https://<registry-url>/simple/
+  ```
+</Accordion>
+
+## See also
+
+- [Artifact push command](/commands/artifact/push)
+- [Artifact management guide](/guides/artifact-management)
+- [Python Packaging User Guide](https://packaging.python.org/)

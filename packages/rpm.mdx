@@ -1,0 +1,265 @@
+---
+title: RPM packages
+description: Publish and install RPM packages with Harness Artifact Registry
+---
+
+Harness Artifact Registry provides support for RPM packages, allowing you to host private Red Hat/CentOS/Fedora packages.
+
+## Overview
+
+RPM registry features:
+- Standard RPM repository protocol
+- Automatic repository metadata generation
+- GPG signature support
+- Multi-architecture support (x86_64, aarch64, noarch)
+- Integration with yum and dnf package managers
+
+## Pushing RPM packages
+
+Use the `hc artifact push rpm` command:
+
+```bash
+hc artifact push rpm <registry-name> <rpm-file-path> \
+  --pkg-url <pkg-url>
+```
+
+<Note>
+  RPM files are binary packages with `.rpm` extension
+</Note>
+
+## Building RPM packages
+
+<Steps>
+  <Step title="Create RPM spec file">
+    Define your package specification:
+    
+    ```spec mypackage.spec
+    Name:           mypackage
+    Version:        1.0.0
+    Release:        1%{?dist}
+    Summary:        My application
+    License:        MIT
+    URL:            https://example.com/mypackage
+    
+    %description
+    My awesome application description
+    
+    %prep
+    # Preparation steps
+    
+    %build
+    # Build steps
+    
+    %install
+    # Installation steps
+    mkdir -p %{buildroot}/usr/bin
+    cp myapp %{buildroot}/usr/bin/
+    
+    %files
+    /usr/bin/myapp
+    
+    %changelog
+    * Mon Jan 01 2024 Your Name <you@example.com> - 1.0.0-1
+    - Initial release
+    ```
+  </Step>
+  
+  <Step title="Build the RPM">
+    Use rpmbuild:
+    
+    ```bash
+    # Install build tools
+    sudo yum install rpm-build rpmdevtools
+    
+    # Create build structure
+    rpmdev-setuptree
+    
+    # Build the RPM
+    rpmbuild -ba mypackage.spec
+    ```
+    
+    This creates: `~/rpmbuild/RPMS/x86_64/mypackage-1.0.0-1.el8.x86_64.rpm`
+  </Step>
+  
+  <Step title="Upload to registry">
+    Push the RPM:
+    
+    ```bash
+    hc artifact push rpm my-registry \
+      ~/rpmbuild/RPMS/x86_64/mypackage-1.0.0-1.el8.x86_64.rpm \
+      --pkg-url https://app.harness.io/registry/pkg
+    ```
+  </Step>
+</Steps>
+
+## Installing RPM packages
+
+Configure yum/dnf to use your Harness registry:
+
+### Create repository configuration
+
+```bash
+sudo tee /etc/yum.repos.d/harness.repo <<EOF
+[harness]
+name=Harness RPM Repository
+baseurl=https://<username>:<token>@<registry-url>/rpm/
+enabled=1
+gpgcheck=0
+EOF
+```
+
+### Install packages
+
+```bash
+# Update cache
+sudo yum makecache
+
+# Install package
+sudo yum install mypackage
+
+# Or with dnf (Fedora/RHEL 8+)
+sudo dnf install mypackage
+```
+
+## Examples
+
+<CodeGroup>
+
+```bash Basic RPM
+# Build and push a simple RPM
+rpmbuild -ba mypackage.spec
+hc artifact push rpm my-registry \
+  ~/rpmbuild/RPMS/x86_64/mypackage-1.0.0-1.x86_64.rpm \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash Noarch package
+# Build architecture-independent package
+rpmbuild -ba mypackage.spec --target noarch
+hc artifact push rpm my-registry \
+  ~/rpmbuild/RPMS/noarch/mypackage-1.0.0-1.noarch.rpm \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash Multiple architectures
+# Build for multiple architectures
+for arch in x86_64 aarch64; do
+  rpmbuild -ba mypackage.spec --target $arch
+  hc artifact push rpm my-registry \
+    ~/rpmbuild/RPMS/$arch/mypackage-1.0.0-1.$arch.rpm \
+    --pkg-url https://app.harness.io/registry/pkg
+done
+```
+
+</CodeGroup>
+
+## RPM naming convention
+
+RPM packages follow this format:
+
+```
+name-version-release.architecture.rpm
+```
+
+Examples:
+- `mypackage-1.0.0-1.el8.x86_64.rpm`
+- `myapp-2.1.0-1.fc38.aarch64.rpm`
+- `mytool-1.0.0-1.noarch.rpm`
+
+## Version and release
+
+RPM uses separate version and release fields:
+
+- **Version**: Upstream version (e.g., `1.0.0`)
+- **Release**: Package revision (e.g., `1%{?dist}`)
+
+Example: `mypackage-1.0.0-1.el8` means:
+- Package: mypackage
+- Version: 1.0.0
+- Release: 1
+- Distribution: el8 (RHEL/CentOS 8)
+
+## GPG signing (optional)
+
+Sign your RPMs for added security:
+
+```bash
+# Generate GPG key
+gpg --gen-key
+
+# Export public key
+gpg --export -a 'Your Name' > RPM-GPG-KEY-yourname
+
+# Sign RPM
+rpmsign --addsign mypackage-1.0.0-1.x86_64.rpm
+
+# Upload signed RPM
+hc artifact push rpm my-registry ./mypackage-1.0.0-1.x86_64.rpm \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+## CI/CD integration
+
+<Tabs>
+  <Tab title="GitHub Actions">
+    ```yaml
+    - name: Build and publish RPM
+      run: |
+        sudo yum install -y rpm-build
+        rpmbuild -ba mypackage.spec
+        hc artifact push rpm my-registry \
+          ~/rpmbuild/RPMS/*/*.rpm \
+          --pkg-url https://app.harness.io/registry/pkg
+      env:
+        HARNESS_API_KEY: ${{ secrets.HARNESS_API_KEY }}
+    ```
+  </Tab>
+  
+  <Tab title="GitLab CI">
+    ```yaml
+    publish:
+      image: centos:8
+      script:
+        - yum install -y rpm-build
+        - rpmbuild -ba mypackage.spec
+        - hc artifact push rpm my-registry ~/rpmbuild/RPMS/*/*.rpm --pkg-url $PKG_URL
+      variables:
+        HARNESS_API_KEY: $HARNESS_TOKEN
+    ```
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+<Accordion title="RPM build failed">
+  Check your spec file syntax:
+  
+  ```bash
+  # Lint spec file
+  rpmlint mypackage.spec
+  ```
+</Accordion>
+
+<Accordion title="Dependencies not found">
+  Ensure all build dependencies are installed:
+  
+  ```bash
+  # Install build dependencies from spec
+  sudo yum-builddep mypackage.spec
+  ```
+</Accordion>
+
+<Accordion title="Repository metadata error">
+  Clear yum cache:
+  
+  ```bash
+  sudo yum clean all
+  sudo yum makecache
+  ```
+</Accordion>
+
+## See also
+
+- [Artifact push command](/commands/artifact/push)
+- [Artifact management guide](/guides/artifact-management)
+- [RPM Packaging Guide](https://rpm-packaging-guide.github.io/)

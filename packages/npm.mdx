@@ -1,0 +1,228 @@
+---
+title: npm packages
+description: Publish and install npm packages with Harness Artifact Registry
+---
+
+Harness Artifact Registry provides full support for npm packages, allowing you to host private JavaScript and TypeScript packages.
+
+## Overview
+
+NPM registry features:
+- Standard npm registry protocol
+- Automatic metadata extraction from `package.json`
+- Scoped package support (`@org/package`)
+- Version management and dist-tags
+- Seamless integration with npm, yarn, and pnpm
+
+## Pushing npm packages
+
+Use the `hc artifact push npm` command to publish packages:
+
+```bash
+hc artifact push npm <registry-name> <npm-tgz-path> \
+  --pkg-url <pkg-url>
+```
+
+### How it works
+
+The CLI automatically:
+1. Validates the `.tgz` tarball format
+2. Extracts `package.json` from the tarball
+3. Reads package name and version from `package.json`
+4. Builds the npm upload payload
+5. Uploads the package to the registry
+
+<Steps>
+  <Step title="Create package tarball">
+    Build your npm package:
+    
+    ```bash
+    # In your package directory
+    npm pack
+    # Creates: your-package-1.0.0.tgz
+    ```
+  </Step>
+  
+  <Step title="Upload to registry">
+    Push the tarball:
+    
+    ```bash
+    hc artifact push npm my-npm-registry ./your-package-1.0.0.tgz \
+      --pkg-url https://app.harness.io/registry/pkg
+    ```
+  </Step>
+  
+  <Step title="Configure npm client">
+    Set up npm to use your registry:
+    
+    ```bash
+    hc registry configure npm my-npm-registry
+    ```
+  </Step>
+</Steps>
+
+## Installing npm packages
+
+After configuring your npm client, install packages as usual:
+
+```bash
+# Install from your private registry
+npm install your-package
+
+# Or with yarn
+yarn add your-package
+
+# Or with pnpm
+pnpm add your-package
+```
+
+## Registry configuration
+
+Configure npm to use your Harness registry:
+
+### Project-level configuration
+
+Create `.npmrc` in your project:
+
+```ini .npmrc
+registry=https://<registry-url>/
+//registry-url/:_authToken=<your-harness-token>
+```
+
+### Scoped packages
+
+For scoped packages (`@myorg/package`):
+
+```ini .npmrc
+@myorg:registry=https://<registry-url>/
+//registry-url/:_authToken=<your-harness-token>
+```
+
+### Using the CLI
+
+Automate configuration with:
+
+```bash
+hc registry configure npm my-npm-registry \
+  --scope @myorg \
+  --project
+```
+
+## Examples
+
+<CodeGroup>
+
+```bash Public package
+# Pack and push a public package
+npm pack
+hc artifact push npm my-registry ./mypackage-1.0.0.tgz \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash Scoped package
+# Pack and push a scoped package
+npm pack
+hc artifact push npm my-registry ./@myorg-mypackage-1.0.0.tgz \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash Beta version
+# Publish a beta version
+npm version 2.0.0-beta.1
+npm pack
+hc artifact push npm my-registry ./mypackage-2.0.0-beta.1.tgz \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+</CodeGroup>
+
+## Package.json requirements
+
+<Warning>
+  The `package.json` must contain both `name` and `version` fields
+</Warning>
+
+Minimal `package.json`:
+
+```json
+{
+  "name": "mypackage",
+  "version": "1.0.0",
+  "description": "My awesome package",
+  "main": "index.js"
+}
+```
+
+For scoped packages:
+
+```json
+{
+  "name": "@myorg/mypackage",
+  "version": "1.0.0"
+}
+```
+
+## CI/CD integration
+
+<Tabs>
+  <Tab title="GitHub Actions">
+    ```yaml
+    - name: Publish to Harness
+      env:
+        HARNESS_API_KEY: ${{ secrets.HARNESS_API_KEY }}
+      run: |
+        npm pack
+        hc artifact push npm my-registry ./*.tgz \
+          --pkg-url https://app.harness.io/registry/pkg
+    ```
+  </Tab>
+  
+  <Tab title="GitLab CI">
+    ```yaml
+    publish:
+      script:
+        - npm pack
+        - hc artifact push npm my-registry ./*.tgz --pkg-url $PKG_URL
+      variables:
+        HARNESS_API_KEY: $HARNESS_TOKEN
+    ```
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+<Accordion title="package.json must contain 'name' and 'version'">
+  Ensure your tarball was created correctly:
+  
+  ```bash
+  # Check tarball contents
+  tar -tzf mypackage-1.0.0.tgz | grep package.json
+  
+  # Verify package.json has name and version
+  npm pack --dry-run
+  ```
+</Accordion>
+
+<Accordion title="Failed to extract package.json from tarball">
+  The file must be a valid gzipped tarball:
+  
+  ```bash
+  # Create proper tarball
+  npm pack  # Don't use tar directly
+  ```
+</Accordion>
+
+<Accordion title="Upload failed with 4xx error">
+  Check authentication and permissions:
+  
+  ```bash
+  hc auth status
+  hc registry list  # Verify registry exists
+  ```
+</Accordion>
+
+## See also
+
+- [Registry configure command](/commands/registry/configure)
+- [Artifact push command](/commands/artifact/push)
+- [Artifact management guide](/guides/artifact-management)

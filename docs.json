@@ -1,122 +1,143 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Harness CLI",
+  "theme": "aspen",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#00ADE4",
+    "light": "#00ADE4",
+    "dark": "#00ADE4"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/harness/harness-cli"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/harness/harness-cli"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction",
+              "installation",
+              "quickstart"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/authentication",
+              "concepts/configuration",
+              "concepts/output-formats"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Guides",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "guides/registry-migration",
+              "guides/artifact-management",
+              "guides/iacm-usage"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Command Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Authentication",
             "pages": [
-              "api-reference/introduction"
+              "commands/auth/overview",
+              "commands/auth/login",
+              "commands/auth/logout",
+              "commands/auth/status"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Registry",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "commands/registry/overview",
+              "commands/registry/list",
+              "commands/registry/get",
+              "commands/registry/create",
+              "commands/registry/delete",
+              "commands/registry/migrate",
+              "commands/registry/configure",
+              "commands/registry/metadata",
+              "commands/registry/firewall"
+            ]
+          },
+          {
+            "group": "Artifact",
+            "pages": [
+              "commands/artifact/overview",
+              "commands/artifact/list",
+              "commands/artifact/get",
+              "commands/artifact/delete",
+              "commands/artifact/push",
+              "commands/artifact/pull",
+              "commands/artifact/copy",
+              "commands/artifact/metadata"
+            ]
+          },
+          {
+            "group": "Infrastructure as Code",
+            "pages": [
+              "commands/iacm/overview",
+              "commands/iacm/plan"
+            ]
+          },
+          {
+            "group": "Global Options",
+            "pages": [
+              "commands/global-flags"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Package Types",
+        "groups": [
+          {
+            "group": "Supported Formats",
+            "pages": [
+              "packages/docker",
+              "packages/generic",
+              "packages/go",
+              "packages/npm",
+              "packages/maven",
+              "packages/python",
+              "packages/nuget",
+              "packages/cargo",
+              "packages/composer",
+              "packages/conda",
+              "packages/dart",
+              "packages/rpm"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Additional Resources",
+            "pages": [
+              "troubleshooting",
+              "faq",
+              "contributing"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

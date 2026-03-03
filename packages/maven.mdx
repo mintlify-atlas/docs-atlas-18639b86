@@ -1,0 +1,250 @@
+---
+title: Maven packages
+description: Publish and consume Maven artifacts with Harness Artifact Registry
+---
+
+Harness Artifact Registry provides comprehensive support for Maven artifacts, allowing you to host Java libraries, plugins, and applications.
+
+## Overview
+
+Maven registry features:
+- Standard Maven repository layout
+- Automatic POM validation and metadata generation
+- Checksum verification (MD5, SHA-1, SHA-256, SHA-512)
+- `maven-metadata.xml` generation
+- Snapshot and release version support
+
+## Pushing Maven artifacts
+
+Use the `hc artifact push maven` command:
+
+```bash
+hc artifact push maven <registry-name> <jar-file-path> \
+  --pom-file <pom-file-path> \
+  --pkg-url <pkg-url>
+```
+
+### Required flags
+
+<ParamField path="--pom-file" type="string" required>
+  Path to the POM file for validation and metadata extraction
+</ParamField>
+
+<ParamField path="--pkg-url" type="string" required>
+  Base URL for the package service
+</ParamField>
+
+## How it works
+
+The upload process includes:
+
+<Steps>
+  <Step title="POM validation">
+    Validates the POM file contains required `groupId`, `artifactId`, and `version`
+  </Step>
+  
+  <Step title="Artifact naming verification">
+    Ensures JAR filename matches `{artifactId}-{version}.jar` format
+  </Step>
+  
+  <Step title="Checksum generation">
+    Generates MD5, SHA-1, SHA-256, and SHA-512 checksums for verification
+  </Step>
+  
+  <Step title="Metadata creation">
+    Creates or updates `maven-metadata.xml` with version information
+  </Step>
+  
+  <Step title="Upload">
+    Uploads artifact, POM, checksums, and metadata to the registry
+  </Step>
+</Steps>
+
+## Examples
+
+<CodeGroup>
+
+```bash Basic upload
+hc artifact push maven my-maven-registry ./mylib-1.0.0.jar \
+  --pom-file ./pom.xml \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash Snapshot version
+hc artifact push maven my-maven-registry ./mylib-1.0.0-SNAPSHOT.jar \
+  --pom-file ./pom.xml \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash From Maven build
+# Build your project
+mvn clean package
+
+# Push the artifact
+hc artifact push maven my-registry ./target/myapp-2.1.0.jar \
+  --pom-file ./pom.xml \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+</CodeGroup>
+
+## POM file requirements
+
+<Warning>
+  The POM file must contain `groupId`, `artifactId`, and `version`
+</Warning>
+
+Minimal POM:
+
+```xml pom.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  
+  <groupId>com.example</groupId>
+  <artifactId>mylib</artifactId>
+  <version>1.0.0</version>
+  <packaging>jar</packaging>
+</project>
+```
+
+## Artifact naming convention
+
+JAR filename must match the pattern:
+
+```
+{artifactId}-{version}.jar
+```
+
+Examples:
+- `mylib-1.0.0.jar` ✅
+- `mylib-1.0.0-SNAPSHOT.jar` ✅
+- `app-2.1.0.jar` ✅
+- `mylib.jar` ❌ (missing version)
+- `mylib-1.0.jar` ✅ (version doesn't need to match POM exactly)
+
+## Consuming Maven artifacts
+
+Configure Maven to use your Harness registry:
+
+### In pom.xml
+
+```xml pom.xml
+<repositories>
+  <repository>
+    <id>harness</id>
+    <url>https://<registry-url>/</url>
+  </repository>
+</repositories>
+```
+
+### In settings.xml
+
+```xml ~/.m2/settings.xml
+<settings>
+  <servers>
+    <server>
+      <id>harness</id>
+      <username>your-username</username>
+      <password>your-harness-api-token</password>
+    </server>
+  </servers>
+  
+  <profiles>
+    <profile>
+      <id>harness-profile</id>
+      <repositories>
+        <repository>
+          <id>harness</id>
+          <url>https://<registry-url>/</url>
+        </repository>
+      </repositories>
+    </profile>
+  </profiles>
+  
+  <activeProfiles>
+    <activeProfile>harness-profile</activeProfile>
+  </activeProfiles>
+</settings>
+```
+
+## Checksum verification
+
+The CLI automatically generates and uploads checksums:
+
+- `mylib-1.0.0.jar.md5`
+- `mylib-1.0.0.jar.sha1`
+- `mylib-1.0.0.jar.sha256`
+- `mylib-1.0.0.jar.sha512`
+
+Maven clients verify these checksums during download.
+
+## CI/CD integration
+
+<Tabs>
+  <Tab title="GitHub Actions">
+    ```yaml
+    - name: Build and publish
+      run: |
+        mvn clean package
+        hc artifact push maven my-registry ./target/*.jar \
+          --pom-file ./pom.xml \
+          --pkg-url https://app.harness.io/registry/pkg
+      env:
+        HARNESS_API_KEY: ${{ secrets.HARNESS_API_KEY }}
+    ```
+  </Tab>
+  
+  <Tab title="Jenkins">
+    ```groovy
+    stage('Publish') {
+      steps {
+        sh '''
+          mvn clean package
+          hc artifact push maven my-registry ./target/*.jar \
+            --pom-file ./pom.xml \
+            --pkg-url $PKG_URL
+        '''
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+<Accordion title="POM validation failed">
+  Ensure your POM contains all required fields:
+  
+  ```bash
+  # Check POM structure
+  mvn help:effective-pom
+  ```
+</Accordion>
+
+<Accordion title="Artifact name mismatch">
+  JAR filename must follow Maven naming conventions:
+  
+  ```bash
+  # ❌ Wrong
+  mylib.jar
+  
+  # ✅ Correct
+  mylib-1.0.0.jar
+  ```
+</Accordion>
+
+<Accordion title="Checksum generation failed">
+  Ensure the JAR file is readable and not corrupted:
+  
+  ```bash
+  # Verify JAR integrity
+  jar -tf mylib-1.0.0.jar
+  ```
+</Accordion>
+
+## See also
+
+- [Artifact push command](/commands/artifact/push)
+- [Artifact management guide](/guides/artifact-management)
+- [Maven documentation](https://maven.apache.org/)

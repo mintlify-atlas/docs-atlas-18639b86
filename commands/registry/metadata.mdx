@@ -1,0 +1,450 @@
+---
+title: hc registry metadata
+description: Manage metadata on Harness Artifact Registries
+---
+
+Manage custom metadata key-value pairs on registries for organization, tagging, and filtering purposes.
+
+## Usage
+
+```bash
+hc registry metadata <subcommand> [flags]
+```
+
+## Available Subcommands
+
+| Subcommand | Description |
+|------------|-------------|
+| [get](#get-metadata) | Retrieve metadata from a registry |
+| [set](#set-metadata) | Set metadata key-value pairs on a registry |
+| [delete](#delete-metadata) | Delete metadata from a registry |
+
+## Get Metadata
+
+Retrieve all metadata key-value pairs from a registry.
+
+### Usage
+
+```bash
+hc registry metadata get --registry <registry-name>
+```
+
+### Options
+
+<ParamField path="--registry" type="string" required>
+  Registry identifier
+</ParamField>
+
+### Examples
+
+#### Get All Metadata
+
+```bash
+hc registry metadata get --registry my-docker-reg
+```
+
+#### Output Example
+
+```bash
+$ hc registry metadata get --registry my-docker-reg
+
+✓ Metadata fetched
+
+Key        Value
+env        prod
+region     us-east-1
+team       platform
+owner      john.doe
+cost-center 1234
+```
+
+#### No Metadata
+
+```bash
+$ hc registry metadata get --registry new-registry
+
+✓ Metadata fetched
+No metadata found
+```
+
+#### JSON Output
+
+```bash
+hc registry metadata get --registry my-docker-reg --format json
+```
+
+```json
+[
+  {
+    "key": "env",
+    "value": "prod"
+  },
+  {
+    "key": "region",
+    "value": "us-east-1"
+  },
+  {
+    "key": "team",
+    "value": "platform"
+  }
+]
+```
+
+## Set Metadata
+
+Set or update metadata key-value pairs on a registry.
+
+### Usage
+
+```bash
+hc registry metadata set --registry <registry-name> --metadata "key:value,key:value"
+```
+
+### Options
+
+<ParamField path="--registry" type="string" required>
+  Registry identifier
+</ParamField>
+
+<ParamField path="--metadata" type="string" required>
+  Metadata in `key:value,key:value` format
+</ParamField>
+
+### Examples
+
+#### Set Single Metadata
+
+```bash
+hc registry metadata set \
+  --registry my-docker-reg \
+  --metadata "env:prod"
+```
+
+#### Set Multiple Metadata
+
+```bash
+hc registry metadata set \
+  --registry my-docker-reg \
+  --metadata "env:prod,region:us-east-1,team:platform"
+```
+
+#### Output Example
+
+```bash
+$ hc registry metadata set --registry my-docker-reg --metadata "env:prod,region:us"
+
+✓ Metadata parsed
+✓ Metadata updated successfully
+```
+
+## Delete Metadata
+
+Delete specific metadata key-value pairs from a registry.
+
+### Usage
+
+```bash
+hc registry metadata delete --registry <registry-name> --metadata "key:value,key:value"
+```
+
+### Options
+
+<ParamField path="--registry" type="string" required>
+  Registry identifier
+</ParamField>
+
+<ParamField path="--metadata" type="string" required>
+  Metadata to delete in `key:value,key:value` format
+</ParamField>
+
+### Examples
+
+#### Delete Single Metadata
+
+```bash
+hc registry metadata delete \
+  --registry my-docker-reg \
+  --metadata "env:prod"
+```
+
+#### Delete Multiple Metadata
+
+```bash
+hc registry metadata delete \
+  --registry my-docker-reg \
+  --metadata "env:prod,region:us-east-1"
+```
+
+#### Output Example
+
+```bash
+$ hc registry metadata delete --registry my-docker-reg --metadata "env:prod"
+
+✓ Metadata parsed
+✓ Metadata deleted successfully
+```
+
+## Metadata Format
+
+Metadata is specified as comma-separated key-value pairs:
+
+```
+key1:value1,key2:value2,key3:value3
+```
+
+### Format Rules
+
+- Use `:` to separate keys and values
+- Use `,` to separate multiple pairs
+- Keys and values are case-sensitive
+- Whitespace is preserved in values
+- Special characters in values should be quoted
+
+### Valid Examples
+
+```bash
+# Simple metadata
+--metadata "env:prod"
+
+# Multiple pairs
+--metadata "env:prod,region:us-east"
+
+# Values with spaces (quote the entire string)
+--metadata "env:prod,description:Production Docker Registry"
+
+# Numbers and special chars
+--metadata "port:8080,version:1.0.0,owner:john.doe@example.com"
+```
+
+## Common Use Cases
+
+### Environment Tagging
+
+Tag registries by environment:
+
+<CodeGroup>
+
+```bash Production
+hc registry metadata set \
+  --registry prod-docker \
+  --metadata "env:prod,tier:critical"
+```
+
+```bash Staging
+hc registry metadata set \
+  --registry staging-docker \
+  --metadata "env:staging,tier:standard"
+```
+
+```bash Development
+hc registry metadata set \
+  --registry dev-docker \
+  --metadata "env:dev,tier:basic"
+```
+
+</CodeGroup>
+
+### Team Ownership
+
+Track which team owns each registry:
+
+```bash
+hc registry metadata set \
+  --registry frontend-npm \
+  --metadata "team:frontend,owner:frontend-team@company.com,slack:#frontend"
+
+hc registry metadata set \
+  --registry backend-maven \
+  --metadata "team:backend,owner:backend-team@company.com,slack:#backend"
+```
+
+### Cost Allocation
+
+Track cost centers and projects:
+
+```bash
+hc registry metadata set \
+  --registry project-a-docker \
+  --metadata "project:project-a,cost-center:1234,budget:approved"
+```
+
+### Regional Tagging
+
+Identify regional registries:
+
+```bash
+hc registry metadata set \
+  --registry us-docker \
+  --metadata "region:us-east-1,location:primary"
+
+hc registry metadata set \
+  --registry eu-docker \
+  --metadata "region:eu-west-1,location:secondary"
+```
+
+### Compliance Tags
+
+Track compliance requirements:
+
+```bash
+hc registry metadata set \
+  --registry secure-registry \
+  --metadata "compliance:pci-dss,encryption:enabled,audit:required"
+```
+
+## Metadata Management Workflow
+
+### Initial Setup
+
+1. **Create registry**:
+   ```bash
+   hc registry create my-registry --package-type DOCKER
+   ```
+
+2. **Add metadata**:
+   ```bash
+   hc registry metadata set \
+     --registry my-registry \
+     --metadata "env:prod,team:platform,region:us-east"
+   ```
+
+3. **Verify metadata**:
+   ```bash
+   hc registry metadata get --registry my-registry
+   ```
+
+### Update Metadata
+
+1. **View current metadata**:
+   ```bash
+   hc registry metadata get --registry my-registry
+   ```
+
+2. **Add or update tags**:
+   ```bash
+   hc registry metadata set \
+     --registry my-registry \
+     --metadata "tier:critical,sla:99.9"
+   ```
+
+3. **Verify changes**:
+   ```bash
+   hc registry metadata get --registry my-registry
+   ```
+
+### Clean Up Metadata
+
+1. **List metadata to delete**:
+   ```bash
+   hc registry metadata get --registry my-registry
+   ```
+
+2. **Delete specific tags**:
+   ```bash
+   hc registry metadata delete \
+     --registry my-registry \
+     --metadata "old-tag:value,deprecated:true"
+   ```
+
+## Batch Operations
+
+Manage metadata across multiple registries:
+
+```bash
+#!/bin/bash
+# tag-prod-registries.sh
+
+REGISTRIES=("prod-docker" "prod-npm" "prod-maven")
+
+for registry in "${REGISTRIES[@]}"; do
+  echo "Tagging $registry..."
+  hc registry metadata set \
+    --registry "$registry" \
+    --metadata "env:prod,tier:critical,backup:daily"
+done
+```
+
+## Query Metadata
+
+Retrieve and filter metadata:
+
+```bash
+# Get all registries and their metadata
+hc registry list --format json | jq '.data.registries[] | {name: .identifier}'
+
+# Get metadata for specific registry
+hc registry metadata get --registry my-registry --format json
+
+# Filter by metadata key
+hc registry metadata get --registry my-registry --format json | \
+  jq '.[] | select(.key == "env")'
+```
+
+## Error Handling
+
+### Registry Not Found
+
+```
+not found: registry 'nonexistent' not found
+```
+
+**Solution**: Verify registry name:
+```bash
+hc registry list
+```
+
+### Invalid Metadata Format
+
+```
+failed to parse metadata
+```
+
+**Solution**: Check format. Use `key:value,key:value` syntax.
+
+### Permission Denied
+
+```
+bad request: permission denied
+```
+
+**Solution**: Ensure you have write permissions for the registry.
+
+## Best Practices
+
+1. **Consistent Naming**: Use consistent key names across registries
+   - Use `env` not `environment` or `stage`
+   - Use `team` not `owner` or `group`
+
+2. **Hierarchical Keys**: Use prefixes for organization
+   ```bash
+   --metadata "aws:region:us-east-1,aws:account:123456,gcp:project:my-project"
+   ```
+
+3. **Avoid PII**: Don't store sensitive personal information
+   - ✓ `owner:platform-team@company.com`
+   - ✗ `owner:John Doe's personal email`
+
+4. **Document Metadata Schema**: Maintain a standard set of tags
+   ```yaml
+   # metadata-schema.yaml
+   standard_tags:
+     env: [prod, staging, dev]
+     team: [frontend, backend, platform]
+     tier: [critical, standard, basic]
+     region: [us-east-1, eu-west-1, ap-south-1]
+   ```
+
+5. **Audit Metadata**: Regularly review and clean up unused tags
+   ```bash
+   # List all registries and their metadata
+   for reg in $(hc registry list | awk 'NR>1 {print $1}'); do
+     echo "\n=== $reg ==="
+     hc registry metadata get --registry "$reg"
+   done
+   ```
+
+## Related Commands
+
+- [hc registry list](/commands/registry/list) - List all registries
+- [hc registry get](/commands/registry/get) - Get registry details
+- [hc registry create](/commands/registry/create) - Create a new registry

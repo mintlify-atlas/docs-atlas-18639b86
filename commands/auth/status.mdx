@@ -1,0 +1,565 @@
+---
+title: 'hc auth status'
+description: 'Check current authentication status and validate credentials'
+---
+
+## Usage
+
+```bash
+hc auth status
+```
+
+## Description
+
+The `hc auth status` command checks your current authentication status by reading your saved credentials and validating them against the Harness API. This command confirms that you're logged in and that your credentials are still valid.
+
+The status check performs an actual API call to Harness services to verify your token is active and has the necessary permissions.
+
+## Flags
+
+This command has no flags.
+
+## What Gets Checked
+
+When you run `hc auth status`, the CLI:
+
+1. **Reads Local Config** - Loads credentials from `~/.harness/auth.json`
+2. **Validates Token** - Checks that an API token exists
+3. **Validates Account** - Checks that an account ID exists
+4. **API Verification** - Makes a GET request to `/ng/api/accounts/{accountID}`
+5. **Displays Details** - Shows authentication information
+
+## Output
+
+### When Authenticated
+
+Successful authentication displays comprehensive details:
+
+```bash
+$ hc auth status
+Checking authentication status...
+Authentication Status: ✓ Authenticated
+API URL:      https://app.harness.io
+Account ID:   abc123def456
+```
+
+### With Organization and Project
+
+If you logged in with organization and project scope:
+
+```bash
+$ hc auth status
+Checking authentication status...
+Authentication Status: ✓ Authenticated
+API URL:      https://app.harness.io
+Account ID:   abc123def456
+Org ID:       default
+Project ID:   myproject
+```
+
+### When Not Authenticated
+
+If you're not logged in:
+
+```bash
+$ hc auth status
+Checking authentication status...
+Error: not logged in: no API token found. Please run 'hc auth login' first
+```
+
+### When Token is Invalid
+
+If your token has expired or been revoked:
+
+```bash
+$ hc auth status
+Checking authentication status...
+Error: authentication validation failed: authentication failed with status 401 Unauthorized. Please check your credentials
+```
+
+## Examples
+
+### Quick Status Check
+
+Verify you're logged in before running commands:
+
+```bash
+$ hc auth status
+Checking authentication status...
+Authentication Status: ✓ Authenticated
+API URL:      https://app.harness.io
+Account ID:   abc123def456
+
+$ hc pipeline list
+# Proceeds with API call
+```
+
+### Verify After Login
+
+Confirm successful authentication after login:
+
+```bash
+$ hc auth login --api-token $HARNESS_TOKEN --non-interactive
+Validating credentials...
+✓ Credentials validated successfully
+Successfully logged into Harness
+API URL:      https://app.harness.io
+Account ID:   abc123def456
+
+$ hc auth status
+Checking authentication status...
+Authentication Status: ✓ Authenticated
+API URL:      https://app.harness.io
+Account ID:   abc123def456
+```
+
+### Check Before Deployment
+
+Validate authentication in deployment scripts:
+
+```bash deploy.sh
+#!/bin/bash
+set -e
+
+echo "Checking Harness authentication..."
+if hc auth status; then
+  echo "Authenticated successfully"
+  hc pipeline execute --id prod-deployment
+else
+  echo "Not authenticated. Please run 'hc auth login' first"
+  exit 1
+fi
+```
+
+### CI/CD Health Check
+
+Verify authentication in CI/CD pipelines:
+
+<CodeGroup>
+```yaml GitHub Actions
+name: Deploy with Harness
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Login to Harness
+        env:
+          HARNESS_API_TOKEN: ${{ secrets.HARNESS_API_TOKEN }}
+        run: |
+          hc auth login \
+            --api-token $HARNESS_API_TOKEN \
+            --non-interactive
+      
+      - name: Verify Authentication
+        run: hc auth status
+      
+      - name: Deploy Application
+        run: hc pipeline execute --id my-pipeline
+```
+
+```yaml GitLab CI
+deploy:
+  stage: deploy
+  script:
+    - hc auth login --api-token $HARNESS_API_TOKEN --non-interactive
+    - hc auth status
+    - hc pipeline execute --id my-pipeline
+```
+
+```groovy Jenkins
+pipeline {
+    agent any
+    
+    environment {
+        HARNESS_TOKEN = credentials('harness-api-token')
+    }
+    
+    stages {
+        stage('Authenticate') {
+            steps {
+                sh 'hc auth login --api-token $HARNESS_TOKEN --non-interactive'
+                sh 'hc auth status'
+            }
+        }
+        
+        stage('Deploy') {
+            steps {
+                sh 'hc pipeline execute --id my-pipeline'
+            }
+        }
+    }
+}
+```
+</CodeGroup>
+
+### Multi-Account Verification
+
+Verify which account you're currently using:
+
+```bash
+$ hc auth status
+Checking authentication status...
+Authentication Status: ✓ Authenticated
+API URL:      https://app.harness.io
+Account ID:   prod-account-123
+Org ID:       production
+
+# Oops, wrong account! Switch to staging
+$ hc auth logout
+Successfully logged out from Harness
+
+$ hc auth login --api-token $STAGING_TOKEN --non-interactive
+Successfully logged into Harness
+
+$ hc auth status
+Checking authentication status...
+Authentication Status: ✓ Authenticated
+API URL:      https://app.harness.io
+Account ID:   staging-account-456
+Org ID:       staging
+```
+
+### Automated Health Check Script
+
+Monitor CLI authentication status:
+
+```bash check-auth.sh
+#!/bin/bash
+
+# Colors for output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+echo "Checking Harness CLI authentication..."
+
+if hc auth status > /dev/null 2>&1; then
+  echo -e "${GREEN}✓ Harness CLI is authenticated${NC}"
+  hc auth status
+  exit 0
+else
+  echo -e "${RED}✗ Harness CLI is not authenticated${NC}"
+  echo "Please run: hc auth login"
+  exit 1
+fi
+```
+
+### Status Check with JSON Parsing
+
+Extract specific information from status:
+
+```bash
+# Check if authenticated (exit code based)
+if hc auth status > /dev/null 2>&1; then
+  echo "Authenticated"
+else
+  echo "Not authenticated"
+  exit 1
+fi
+
+# Extract account ID
+ACCOUNT_ID=$(hc auth status 2>/dev/null | grep "Account ID:" | awk '{print $3}')
+echo "Current account: $ACCOUNT_ID"
+```
+
+## Validation Process
+
+The status command validates credentials by:
+
+1. **Loading Config** - Reading `~/.harness/auth.json`
+2. **Checking Token** - Ensuring API token is present
+3. **Checking Account** - Ensuring account ID is present
+4. **API Call** - GET request to `/ng/api/accounts/{accountID}`
+5. **Response Check** - Verifying 200 OK status
+6. **Parse Response** - Validating account data structure
+
+## Error Messages
+
+### Not Logged In (No Token)
+
+```bash
+$ hc auth status
+Checking authentication status...
+Error: not logged in: no API token found. Please run 'hc auth login' first
+```
+
+**Solution**: Log in first
+```bash
+hc auth login
+```
+
+### Not Logged In (No Account ID)
+
+```bash
+$ hc auth status
+Checking authentication status...
+Error: not logged in: no account ID found. Please run 'hc auth login' first
+```
+
+**Solution**: Re-authenticate
+```bash
+hc auth logout --force
+hc auth login
+```
+
+### Invalid Credentials
+
+```bash
+$ hc auth status
+Checking authentication status...
+Error: authentication validation failed: authentication failed with status 401 Unauthorized. Please check your credentials
+```
+
+**Possible Causes**:
+- Token has expired
+- Token has been revoked
+- Account ID doesn't match token
+- Token lacks necessary permissions
+
+**Solution**: Log in with fresh credentials
+```bash
+hc auth logout
+hc auth login --api-token $NEW_TOKEN
+```
+
+### Network Issues
+
+```bash
+$ hc auth status
+Checking authentication status...
+Error: authentication validation failed: error connecting to Harness API: dial tcp: lookup app.harness.io: no such host
+```
+
+**Solution**: Check network connectivity
+```bash
+# Test connectivity
+ping app.harness.io
+curl -I https://app.harness.io
+
+# Try status again
+hc auth status
+```
+
+### Timeout Error
+
+```bash
+$ hc auth status
+Checking authentication status...
+Error: authentication validation failed: error connecting to Harness API: context deadline exceeded
+```
+
+**Solution**: The API call timed out after 10 seconds. Check:
+- Network connection speed
+- Firewall rules
+- VPN settings
+- Harness service status
+
+## Use Cases
+
+### Pre-flight Check
+
+Verify authentication before important operations:
+
+```bash
+echo "Pre-flight checks..."
+
+if ! hc auth status; then
+  echo "Error: Not authenticated with Harness"
+  exit 1
+fi
+
+if ! git status > /dev/null 2>&1; then
+  echo "Error: Not in a git repository"
+  exit 1
+fi
+
+echo "All checks passed. Proceeding with deployment..."
+hc pipeline execute --id critical-deployment
+```
+
+### Debug Authentication Issues
+
+Troubleshoot login problems:
+
+```bash
+echo "Debugging authentication..."
+
+# Check if auth file exists
+if [ -f ~/.harness/auth.json ]; then
+  echo "✓ Auth file exists at ~/.harness/auth.json"
+else
+  echo "✗ No auth file found"
+  exit 1
+fi
+
+# Check file permissions
+PERMS=$(stat -c %a ~/.harness/auth.json 2>/dev/null || stat -f %A ~/.harness/auth.json 2>/dev/null)
+echo "File permissions: $PERMS"
+
+# Try status check
+if hc auth status; then
+  echo "✓ Authentication is valid"
+else
+  echo "✗ Authentication check failed"
+fi
+```
+
+### Session Information Display
+
+Show current session details in prompts:
+
+```bash
+# Add to .bashrc or .zshrc
+hc_auth_prompt() {
+  if hc auth status > /dev/null 2>&1; then
+    ACCOUNT=$(hc auth status 2>/dev/null | grep "Account ID:" | awk '{print $3}')
+    echo "[HC:$ACCOUNT]"
+  else
+    echo "[HC:not-auth]"
+  fi
+}
+
+# Use in PS1
+PS1='$(hc_auth_prompt) \u@\h:\w\$ '
+```
+
+### Automated Re-authentication
+
+Auto-login if status check fails:
+
+```bash auto-auth.sh
+#!/bin/bash
+
+if hc auth status > /dev/null 2>&1; then
+  echo "Already authenticated"
+else
+  echo "Not authenticated. Logging in..."
+  
+  if [ -z "$HARNESS_API_TOKEN" ]; then
+    echo "Error: HARNESS_API_TOKEN environment variable not set"
+    exit 1
+  fi
+  
+  hc auth login \
+    --api-token "$HARNESS_API_TOKEN" \
+    --account "$HARNESS_ACCOUNT_ID" \
+    --non-interactive
+  
+  if hc auth status > /dev/null 2>&1; then
+    echo "Successfully authenticated"
+  else
+    echo "Authentication failed"
+    exit 1
+  fi
+fi
+```
+
+## Exit Codes
+
+| Exit Code | Meaning |
+|-----------|--------|
+| 0 | Successfully authenticated |
+| 1 | Not authenticated or validation failed |
+
+Use exit codes in scripts:
+
+```bash
+hc auth status
+if [ $? -eq 0 ]; then
+  echo "Authenticated"
+else
+  echo "Not authenticated"
+fi
+```
+
+## Best Practices
+
+1. **Check Before Critical Operations** - Always verify auth status before important commands
+2. **Use in Scripts** - Add status checks to automation scripts
+3. **Monitor in CI/CD** - Verify authentication in pipeline steps
+4. **Regular Checks** - Periodically verify your credentials haven't expired
+5. **Error Handling** - Properly handle status check failures in scripts
+6. **Display in Prompts** - Show auth status in shell prompts for awareness
+7. **Log Status Output** - Capture status output in logs for troubleshooting
+
+## Information Displayed
+
+The status command shows:
+
+| Field | Description | Always Shown |
+|-------|-------------|-------------|
+| Authentication Status | Whether you're authenticated | Yes |
+| API URL | Harness API endpoint | Yes |
+| Account ID | Your Harness account identifier | Yes |
+| Org ID | Organization scope (if set) | No |
+| Project ID | Project scope (if set) | No |
+
+## API Request Details
+
+The validation request:
+
+```http
+GET /ng/api/accounts/{accountID} HTTP/1.1
+Host: app.harness.io
+x-api-key: pat.abc123.xyz789.qwe456
+```
+
+Successful response:
+
+```json
+{
+  "data": {
+    "identifier": "abc123def456",
+    "name": "My Account",
+    "createdAt": 1234567890000
+  }
+}
+```
+
+## Related Commands
+
+- [hc auth login](/commands/auth/login) - Authenticate with Harness
+- [hc auth logout](/commands/auth/logout) - Remove saved credentials
+
+## Troubleshooting
+
+### Status Shows Authenticated but Commands Fail
+
+If status check passes but other commands fail:
+
+```bash
+$ hc auth status
+Authentication Status: ✓ Authenticated
+
+$ hc pipeline list
+Error: 403 Forbidden
+```
+
+**Cause**: Token lacks necessary permissions
+
+**Solution**: Use a token with appropriate permissions or contact your Harness admin
+
+### Intermittent Status Failures
+
+If status check sometimes fails:
+
+1. Check network stability
+2. Verify Harness service status
+3. Check for rate limiting
+4. Review timeout settings
+
+### Status Hangs
+
+If the status command hangs:
+
+1. Wait for the 10-second timeout
+2. Check network connectivity
+3. Verify API URL is correct
+4. Try with a different network

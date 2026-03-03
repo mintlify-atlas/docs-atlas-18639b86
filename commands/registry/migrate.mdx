@@ -1,0 +1,597 @@
+---
+title: hc registry migrate
+description: Migrate artifacts from external registries to Harness Artifact Registry
+---
+
+Migrate artifacts from JFrog Artifactory, Nexus, or other registries to Harness Artifact Registry using a YAML configuration file. Supports bulk migration with concurrent transfers and dry-run mode.
+
+## Usage
+
+```bash
+hc registry migrate [flags]
+```
+
+## Options
+
+<ParamField path="--config" type="string" default="config.yaml" required>
+  Path to the migration configuration file (YAML format)
+</ParamField>
+
+<ParamField path="--pkg-url" type="string">
+  Base URL for the package registry API (overrides config file)
+</ParamField>
+
+<ParamField path="--concurrency" type="int" default="1">
+  Number of concurrent migration operations (overrides config file)
+</ParamField>
+
+<ParamField path="--overwrite" type="boolean" default="false">
+  Allow overwriting existing artifacts in destination
+</ParamField>
+
+<ParamField path="--dry-run" type="boolean" default="false">
+  Run in dry-run mode (no uploads, generates file list and directory structure)
+</ParamField>
+
+## Configuration File
+
+Create a YAML configuration file to define the migration:
+
+```yaml config.yaml
+version: 1.0.0
+concurrency: 5
+overwrite: false
+
+source:
+  endpoint: https://source-registry.example.com
+  type: JFROG                    # Supported: JFROG, NEXUS
+  credentials:
+    username: source_user
+    password: source_password
+  insecure: false
+
+destination:
+  endpoint: https://pkg.harness.io
+  type: HAR
+  credentials:
+    username: harness_user
+    password: harness_api_key
+
+mappings:
+  - artifactType: DOCKER
+    sourceRegistry: docker-repo
+    destinationRegistry: harness-docker-repo
+
+  - artifactType: MAVEN
+    sourceRegistry: maven-releases
+    destinationRegistry: harness-maven
+
+  - artifactType: NPM
+    sourceRegistry: npm-local
+    destinationRegistry: harness-npm
+```
+
+## Configuration Structure
+
+### Top-Level Fields
+
+<ParamField path="version" type="string" required>
+  Configuration version (currently `1.0.0`)
+</ParamField>
+
+<ParamField path="concurrency" type="int" default="1">
+  Number of parallel transfers (recommended: 3-10)
+</ParamField>
+
+<ParamField path="overwrite" type="boolean" default="false">
+  Whether to overwrite existing artifacts
+</ParamField>
+
+<ParamField path="dryRun" type="boolean" default="false">
+  Dry-run mode for testing without uploads
+</ParamField>
+
+### Source Registry Configuration
+
+<ParamField path="source.endpoint" type="string" required>
+  Source registry URL (e.g., `https://artifactory.example.com`)
+</ParamField>
+
+<ParamField path="source.type" type="string" required>
+  Source registry type: `JFROG` or `NEXUS`
+</ParamField>
+
+<ParamField path="source.credentials.username" type="string" required>
+  Username for source registry authentication
+</ParamField>
+
+<ParamField path="source.credentials.password" type="string" required>
+  Password or API token for source registry
+</ParamField>
+
+<ParamField path="source.insecure" type="boolean" default="false">
+  Skip TLS certificate verification (not recommended)
+</ParamField>
+
+### Destination Registry Configuration
+
+<ParamField path="destination.endpoint" type="string" required>
+  Harness package registry URL (e.g., `https://pkg.harness.io`)
+</ParamField>
+
+<ParamField path="destination.type" type="string" required>
+  Must be `HAR` (Harness Artifact Registry)
+</ParamField>
+
+<ParamField path="destination.credentials.username" type="string" required>
+  Harness username or service account
+</ParamField>
+
+<ParamField path="destination.credentials.password" type="string" required>
+  Harness API key or token
+</ParamField>
+
+### Registry Mappings
+
+<ParamField path="mappings[].artifactType" type="string" required>
+  Artifact type: `DOCKER`, `MAVEN`, `NPM`, `HELM`, `HELM_LEGACY`, `PYTHON`, `NUGET`, `GO`, `GENERIC`, `CONDA`, `COMPOSER`, `DART`
+</ParamField>
+
+<ParamField path="mappings[].sourceRegistry" type="string" required>
+  Source registry repository name
+</ParamField>
+
+<ParamField path="mappings[].destinationRegistry" type="string" required>
+  Destination Harness registry identifier
+</ParamField>
+
+<ParamField path="mappings[].sourcePackageHostname" type="string" optional>
+  Custom hostname for package source (optional)
+</ParamField>
+
+<ParamField path="mappings[].includePatterns" type="array" optional>
+  Patterns to include (not yet implemented)
+</ParamField>
+
+<ParamField path="mappings[].excludePatterns" type="array" optional>
+  Patterns to exclude (not yet implemented)
+</ParamField>
+
+## Examples
+
+### Basic Migration
+
+Migrate using a configuration file:
+
+```bash
+hc registry migrate -c config.yaml
+```
+
+### Dry Run
+
+Test migration without uploading:
+
+```bash
+hc registry migrate -c config.yaml --dry-run
+```
+
+This generates:
+- File list (all files to be migrated)
+- Directory structure (organized by package/version)
+
+### High-Performance Migration
+
+Use multiple concurrent transfers:
+
+```bash
+hc registry migrate -c config.yaml --concurrency 10
+```
+
+### Overwrite Existing Artifacts
+
+```bash
+hc registry migrate -c config.yaml --overwrite
+```
+
+<Warning>
+Using `--overwrite` will replace existing artifacts in the destination registry.
+</Warning>
+
+### Override Package URL
+
+```bash
+hc registry migrate -c config.yaml --pkg-url https://custom-pkg.harness.io
+```
+
+## Migration Configuration Examples
+
+### Migrate from JFrog Artifactory
+
+<CodeGroup>
+
+```yaml Docker
+version: 1.0.0
+concurrency: 5
+
+source:
+  endpoint: https://artifactory.company.com
+  type: JFROG
+  credentials:
+    username: jfrog_user
+    password: ${JFROG_API_KEY}
+
+destination:
+  endpoint: https://pkg.harness.io
+  type: HAR
+  credentials:
+    username: harness_user
+    password: ${HARNESS_API_KEY}
+
+mappings:
+  - artifactType: DOCKER
+    sourceRegistry: docker-local
+    destinationRegistry: company-docker
+```
+
+```yaml NPM
+version: 1.0.0
+concurrency: 8
+
+source:
+  endpoint: https://artifactory.company.com
+  type: JFROG
+  credentials:
+    username: jfrog_user
+    password: ${JFROG_API_KEY}
+
+destination:
+  endpoint: https://pkg.harness.io
+  type: HAR
+  credentials:
+    username: harness_user
+    password: ${HARNESS_API_KEY}
+
+mappings:
+  - artifactType: NPM
+    sourceRegistry: npm-local
+    destinationRegistry: company-npm
+  - artifactType: NPM
+    sourceRegistry: npm-snapshots
+    destinationRegistry: company-npm-snapshots
+```
+
+```yaml Maven
+version: 1.0.0
+concurrency: 5
+
+source:
+  endpoint: https://artifactory.company.com
+  type: JFROG
+  credentials:
+    username: jfrog_user
+    password: ${JFROG_API_KEY}
+
+destination:
+  endpoint: https://pkg.harness.io
+  type: HAR
+  credentials:
+    username: harness_user
+    password: ${HARNESS_API_KEY}
+
+mappings:
+  - artifactType: MAVEN
+    sourceRegistry: maven-releases
+    destinationRegistry: company-maven-releases
+  - artifactType: MAVEN
+    sourceRegistry: maven-snapshots
+    destinationRegistry: company-maven-snapshots
+```
+
+</CodeGroup>
+
+### Migrate from Nexus
+
+```yaml
+version: 1.0.0
+concurrency: 5
+
+source:
+  endpoint: https://nexus.company.com
+  type: NEXUS
+  credentials:
+    username: nexus_user
+    password: ${NEXUS_PASSWORD}
+  insecure: false
+
+destination:
+  endpoint: https://pkg.harness.io
+  type: HAR
+  credentials:
+    username: harness_user
+    password: ${HARNESS_API_KEY}
+
+mappings:
+  - artifactType: DOCKER
+    sourceRegistry: docker-hosted
+    destinationRegistry: company-docker
+  
+  - artifactType: NPM
+    sourceRegistry: npm-hosted
+    destinationRegistry: company-npm
+  
+  - artifactType: PYTHON
+    sourceRegistry: pypi-hosted
+    destinationRegistry: company-pypi
+```
+
+### Multi-Type Migration
+
+Migrate multiple artifact types in one operation:
+
+```yaml
+version: 1.0.0
+concurrency: 10
+overwrite: false
+
+source:
+  endpoint: https://artifactory.company.com
+  type: JFROG
+  credentials:
+    username: ${SOURCE_USER}
+    password: ${SOURCE_TOKEN}
+
+destination:
+  endpoint: https://pkg.harness.io
+  type: HAR
+  credentials:
+    username: ${HARNESS_USER}
+    password: ${HARNESS_TOKEN}
+
+mappings:
+  - artifactType: DOCKER
+    sourceRegistry: docker-local
+    destinationRegistry: prod-docker
+  
+  - artifactType: HELM
+    sourceRegistry: helm-local
+    destinationRegistry: prod-helm
+  
+  - artifactType: MAVEN
+    sourceRegistry: maven-releases
+    destinationRegistry: prod-maven
+  
+  - artifactType: NPM
+    sourceRegistry: npm-local
+    destinationRegistry: prod-npm
+  
+  - artifactType: PYTHON
+    sourceRegistry: pypi-local
+    destinationRegistry: prod-pypi
+  
+  - artifactType: NUGET
+    sourceRegistry: nuget-local
+    destinationRegistry: prod-nuget
+```
+
+## Environment Variables
+
+Use environment variables for sensitive credentials:
+
+```yaml
+version: 1.0.0
+concurrency: 5
+
+source:
+  endpoint: ${SOURCE_ENDPOINT}
+  type: ${SOURCE_TYPE}
+  credentials:
+    username: ${SOURCE_USERNAME}
+    password: ${SOURCE_PASSWORD}
+
+destination:
+  endpoint: ${DEST_ENDPOINT}
+  type: HAR
+  credentials:
+    username: ${HARNESS_USERNAME}
+    password: ${HARNESS_API_KEY}
+
+mappings:
+  - artifactType: DOCKER
+    sourceRegistry: ${SOURCE_DOCKER_REPO}
+    destinationRegistry: ${DEST_DOCKER_REPO}
+```
+
+Then export the variables:
+
+```bash
+export SOURCE_ENDPOINT="https://artifactory.company.com"
+export SOURCE_TYPE="JFROG"
+export SOURCE_USERNAME="jfrog_user"
+export SOURCE_PASSWORD="jfrog_token"
+export HARNESS_USERNAME="harness_user"
+export HARNESS_API_KEY="harness_token"
+export SOURCE_DOCKER_REPO="docker-local"
+export DEST_DOCKER_REPO="company-docker"
+
+hc registry migrate -c config.yaml
+```
+
+## Supported Artifact Types
+
+The migration tool supports:
+
+- **DOCKER** - Docker container images
+- **HELM** - Helm charts (OCI format)
+- **HELM_LEGACY** - Legacy Helm chart repositories
+- **MAVEN** - Java/Maven artifacts
+- **NPM** - Node.js packages
+- **NUGET** - .NET packages
+- **PYTHON** - Python packages (PyPI)
+- **GO** - Go modules
+- **GENERIC** - Generic file artifacts
+- **CONDA** - Conda packages
+- **COMPOSER** - PHP Composer packages
+- **DART** - Dart/Flutter packages
+
+## Concurrency Tuning
+
+Optimal concurrency depends on:
+- Network bandwidth
+- Source registry limits
+- Number of artifacts
+- Average artifact size
+
+<Info>
+Recommended concurrency values:
+- Small artifacts (< 10 MB): 8-15
+- Medium artifacts (10-100 MB): 5-10
+- Large artifacts (> 100 MB): 3-5
+</Info>
+
+```bash
+# Small NPM packages
+hc registry migrate -c config.yaml --concurrency 15
+
+# Large Docker images
+hc registry migrate -c config.yaml --concurrency 5
+```
+
+## Dry Run Output
+
+Dry run generates two files:
+
+1. **File list** (`dry-run-files.json`):
+```json
+[
+  {
+    "registry": "docker-local",
+    "name": "myapp",
+    "uri": "/docker-local/myapp/1.0.0/manifest.json",
+    "size": 1234,
+    "lastModified": "2024-01-15T10:30:00Z"
+  }
+]
+```
+
+2. **Directory structure** (`dry-run-structure.json`):
+```json
+{
+  "docker-local": {
+    "packages": {
+      "myapp": {
+        "versions": {
+          "1.0.0": {
+            "files": [
+              {
+                "name": "manifest.json",
+                "size": 1234
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+## Graceful Shutdown
+
+The migration can be stopped gracefully:
+
+```bash
+# Press Ctrl+C to stop
+^C
+Received interrupt signal, shutting down gracefully...
+```
+
+Progress is saved, and you can resume by running the command again.
+
+## Migration Progress
+
+During migration, you'll see:
+
+```bash
+$ hc registry migrate -c config.yaml
+
+Starting migration...
+Processing mapping 1/3: DOCKER docker-local -> company-docker
+  Migrating image: myapp:1.0.0 [1/45] (2.3 MB)
+  Migrating image: myapp:1.1.0 [2/45] (2.4 MB)
+  ...
+Completed mapping 1/3
+
+Processing mapping 2/3: NPM npm-local -> company-npm
+  ...
+
+Migration completed successfully
+```
+
+## Error Handling
+
+Common errors and solutions:
+
+### Invalid Credentials
+
+```
+Failed to authenticate with source registry: invalid credentials
+```
+
+**Solution**: Verify username and password/token in config file.
+
+### Registry Not Found
+
+```
+Failed to find registry 'docker-local' in source
+```
+
+**Solution**: Check source registry name. List available repositories in source.
+
+### Network Timeout
+
+```
+Failed to download artifact: connection timeout
+```
+
+**Solution**: Reduce concurrency or check network connectivity.
+
+### Destination Registry Missing
+
+```
+Destination registry 'company-docker' not found
+```
+
+**Solution**: Create the destination registry first:
+```bash
+hc registry create company-docker --package-type DOCKER
+```
+
+## Best Practices
+
+1. **Test with dry run**: Always run `--dry-run` first
+2. **Start small**: Begin with one mapping, then scale up
+3. **Use environment variables**: Keep credentials out of config files
+4. **Monitor progress**: Watch for errors and adjust concurrency
+5. **Verify after migration**: Check artifact counts and sizes
+6. **Plan downtime**: Schedule migration during low-usage periods
+
+## Post-Migration Verification
+
+After migration, verify the results:
+
+```bash
+# Check destination registry
+hc registry get company-docker
+
+# Compare artifact counts
+# Source: Check in JFrog/Nexus UI
+# Destination:
+hc registry get company-docker --format json | jq '.data.registries[0].registrySize'
+```
+
+## Related Commands
+
+- [hc registry list](/commands/registry/list) - List destination registries
+- [hc registry get](/commands/registry/get) - Verify migration results
+- [hc registry create](/commands/registry/create) - Create destination registries
+- [hc registry delete](/commands/registry/delete) - Clean up test migrations

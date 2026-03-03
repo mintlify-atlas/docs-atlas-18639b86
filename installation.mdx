@@ -1,0 +1,334 @@
+---
+title: Installation
+description: Install the Harness CLI on your system
+---
+
+The Harness CLI is distributed as a single binary with no external dependencies. Choose the installation method that works best for your environment.
+
+## Quick install (recommended)
+
+The fastest way to get started is using our installation script, which automatically detects your platform and installs the latest version.
+
+<CodeGroup>
+
+```bash Standard installation
+curl -fsSL https://raw.githubusercontent.com/harness/harness-cli/v2/install | sh
+```
+
+```bash With sudo
+curl -fsSL https://raw.githubusercontent.com/harness/harness-cli/v2/install | sudo sh
+```
+
+```bash Custom directory
+curl -fsSL https://raw.githubusercontent.com/harness/harness-cli/v2/install | INSTALL_DIR=$HOME/.local/bin sh
+```
+
+</CodeGroup>
+
+<Info>
+  The installation script automatically:
+  - Detects your operating system and architecture
+  - Downloads the appropriate binary
+  - Verifies the checksum for security
+  - Installs to `/usr/local/bin` (or your custom directory)
+  - Makes the binary executable
+</Info>
+
+### Verify the installation
+
+After installation, verify that hc is available:
+
+```bash
+hc version
+```
+
+You should see output similar to:
+
+```
+hc version 2.0.0
+Built with go1.21.0
+```
+
+## Manual installation
+
+If you prefer to install manually or the quick install script doesn't work for your environment, you can download the binary directly.
+
+<Steps>
+  <Step title="Download the binary">
+    Visit the [releases page](https://github.com/harness/harness-cli/releases) and download the binary for your platform:
+    
+    - **Linux (x86_64)**: `hc-linux-amd64`
+    - **Linux (ARM64)**: `hc-linux-arm64`
+    - **macOS (Intel)**: `hc-darwin-amd64`
+    - **macOS (Apple Silicon)**: `hc-darwin-arm64`
+    - **Windows (x86_64)**: `hc-windows-amd64.exe`
+    
+    <CodeGroup>
+    
+    ```bash Linux (x86_64)
+    curl -LO https://github.com/harness/harness-cli/releases/latest/download/hc-linux-amd64
+    ```
+    
+    ```bash macOS (Intel)
+    curl -LO https://github.com/harness/harness-cli/releases/latest/download/hc-darwin-amd64
+    ```
+    
+    ```bash macOS (Apple Silicon)
+    curl -LO https://github.com/harness/harness-cli/releases/latest/download/hc-darwin-arm64
+    ```
+    
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Make it executable">
+    Rename the binary to `hc` and add execute permissions:
+    
+    ```bash
+    mv hc-* hc
+    chmod +x hc
+    ```
+  </Step>
+  
+  <Step title="Move to your PATH">
+    Move the binary to a directory in your PATH:
+    
+    ```bash
+    sudo mv hc /usr/local/bin/
+    ```
+    
+    Or for a user-specific installation:
+    
+    ```bash
+    mkdir -p ~/.local/bin
+    mv hc ~/.local/bin/
+    # Add to PATH if needed
+    export PATH="$HOME/.local/bin:$PATH"
+    ```
+  </Step>
+  
+  <Step title="Verify the installation">
+    ```bash
+    hc version
+    ```
+  </Step>
+</Steps>
+
+## Building from source
+
+For development or if you need the absolute latest features, you can build the CLI from source.
+
+<Warning>
+  Building from source requires Go 1.21 or later.
+</Warning>
+
+<Steps>
+  <Step title="Install Go">
+    If you don't have Go installed, download it from [go.dev/dl](https://go.dev/dl).
+    
+    Verify your Go installation:
+    
+    ```bash
+    go version
+    ```
+  </Step>
+  
+  <Step title="Clone the repository">
+    ```bash
+    git clone https://github.com/harness/harness-cli.git
+    cd harness-cli
+    ```
+  </Step>
+  
+  <Step title="Build the binary">
+    Use the provided Makefile to build:
+    
+    ```bash
+    make build
+    ```
+    
+    This creates a `hc` binary in the current directory.
+  </Step>
+  
+  <Step title="Install the binary">
+    Move the built binary to your PATH:
+    
+    ```bash
+    sudo mv hc /usr/local/bin/
+    ```
+    
+    Or install to a custom location:
+    
+    ```bash
+    mv hc ~/.local/bin/
+    ```
+  </Step>
+  
+  <Step title="Verify the build">
+    ```bash
+    hc version
+    ```
+  </Step>
+</Steps>
+
+### Development workflow
+
+If you're developing the CLI, you can use these additional commands:
+
+<CodeGroup>
+
+```bash Run tests
+make test
+```
+
+```bash Run linter
+make lint
+```
+
+```bash Build for all platforms
+make build-all
+```
+
+</CodeGroup>
+
+## Platform-specific notes
+
+<AccordionGroup>
+  <Accordion icon="apple" title="macOS">
+    ### Gatekeeper warning
+    
+    On macOS, you may see a security warning when first running the CLI. This is because the binary is not signed with an Apple Developer certificate.
+    
+    To allow the CLI to run:
+    
+    1. Try to run `hc` in Terminal
+    2. Go to **System Preferences** → **Security & Privacy**
+    3. Click **Allow Anyway** next to the warning about `hc`
+    4. Run `hc` again and click **Open** in the confirmation dialog
+    
+    Alternatively, you can use:
+    
+    ```bash
+    sudo xattr -r -d com.apple.quarantine /usr/local/bin/hc
+    ```
+  </Accordion>
+  
+  <Accordion icon="linux" title="Linux">
+    ### Installation directory
+    
+    If `/usr/local/bin` is not in your PATH, you can either:
+    
+    1. Add it to your PATH in `~/.bashrc` or `~/.zshrc`:
+       ```bash
+       export PATH="/usr/local/bin:$PATH"
+       ```
+    
+    2. Install to a directory that's already in your PATH:
+       ```bash
+       mv hc ~/.local/bin/  # Usually in PATH by default
+       ```
+    
+    ### Permissions
+    
+    If you get a "permission denied" error:
+    
+    ```bash
+    chmod +x /usr/local/bin/hc
+    ```
+  </Accordion>
+  
+  <Accordion icon="windows" title="Windows">
+    ### PowerShell execution
+    
+    1. Download `hc-windows-amd64.exe` from the releases page
+    2. Rename it to `hc.exe`
+    3. Move it to a directory in your PATH (e.g., `C:\Windows\System32` or `C:\Users\YourName\bin`)
+    
+    ### Adding to PATH
+    
+    If the installation directory is not in your PATH:
+    
+    1. Right-click **This PC** → **Properties**
+    2. Click **Advanced system settings**
+    3. Click **Environment Variables**
+    4. Edit the **Path** variable and add your directory
+    5. Restart PowerShell or Command Prompt
+  </Accordion>
+</AccordionGroup>
+
+## Upgrading
+
+To upgrade to the latest version, use the built-in upgrade command:
+
+```bash
+hc upgrade
+```
+
+<Info>
+  The upgrade command automatically downloads and installs the latest version, preserving your configuration.
+</Info>
+
+Alternatively, you can reinstall using any of the methods above.
+
+## Uninstalling
+
+To uninstall the Harness CLI:
+
+<Steps>
+  <Step title="Remove the binary">
+    ```bash
+    sudo rm /usr/local/bin/hc
+    ```
+    
+    Or if you installed to a custom location:
+    
+    ```bash
+    rm ~/.local/bin/hc
+    ```
+  </Step>
+  
+  <Step title="Remove configuration (optional)">
+    If you want to remove your saved authentication configuration:
+    
+    ```bash
+    rm -rf ~/.harness
+    ```
+  </Step>
+</Steps>
+
+## Next steps
+
+Now that you have the CLI installed, you're ready to get started:
+
+<CardGroup cols={2}>
+  <Card
+    title="Quickstart guide"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get from installation to your first successful command in minutes.
+  </Card>
+  
+  <Card
+    title="Authentication"
+    icon="key"
+    href="/concepts/authentication"
+  >
+    Learn how to authenticate with Harness services.
+  </Card>
+  
+  <Card
+    title="Configuration"
+    icon="gear"
+    href="/concepts/configuration"
+  >
+    Configure the CLI for your environment.
+  </Card>
+  
+  <Card
+    title="Command reference"
+    icon="book"
+    href="/commands/auth/overview"
+  >
+    Explore all available commands.
+  </Card>
+</CardGroup>

@@ -1,0 +1,238 @@
+---
+title: NuGet packages
+description: Publish and consume NuGet packages with Harness Artifact Registry
+---
+
+Harness Artifact Registry provides support for NuGet packages, allowing you to host private .NET libraries and applications.
+
+## Overview
+
+NuGet registry features:
+- NuGet V3 protocol support
+- `.nupkg` package format
+- Version management
+- Nested directory support for package uploads
+- Integration with dotnet CLI and NuGet client
+
+## Pushing NuGet packages
+
+Use the `hc artifact push nuget` command:
+
+```bash
+hc artifact push nuget <registry-name> <nupkg-file-path> \
+  --pkg-url <pkg-url>
+```
+
+### Optional flags
+
+<ParamField path="--path" type="string">
+  Path for nested directories within the package. Useful for organizing related packages
+</ParamField>
+
+<ParamField path="--pkg-url" type="string" required>
+  Base URL for the package service
+</ParamField>
+
+## Building NuGet packages
+
+<Steps>
+  <Step title="Create or update .csproj">
+    Ensure your project file has package metadata:
+    
+    ```xml MyLibrary.csproj
+    <Project Sdk="Microsoft.NET.Sdk">
+      <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+        <PackageId>MyCompany.MyLibrary</PackageId>
+        <Version>1.0.0</Version>
+        <Authors>Your Name</Authors>
+        <Description>My awesome library</Description>
+      </PropertyGroup>
+    </Project>
+    ```
+  </Step>
+  
+  <Step title="Build the package">
+    Use dotnet CLI to create the `.nupkg`:
+    
+    ```bash
+    dotnet pack -c Release
+    ```
+  </Step>
+  
+  <Step title="Upload to registry">
+    Push the package:
+    
+    ```bash
+    hc artifact push nuget my-registry ./bin/Release/MyLibrary.1.0.0.nupkg \
+      --pkg-url https://app.harness.io/registry/pkg
+    ```
+  </Step>
+</Steps>
+
+## Installing NuGet packages
+
+Configure NuGet to use your Harness registry:
+
+### Add package source
+
+```bash
+dotnet nuget add source https://<registry-url>/v3/index.json \
+  --name Harness \
+  --username <username> \
+  --password <harness-api-token> \
+  --store-password-in-clear-text
+```
+
+### Install packages
+
+```bash
+# Install a package
+dotnet add package MyCompany.MyLibrary
+
+# Install specific version
+dotnet add package MyCompany.MyLibrary --version 1.0.0
+```
+
+## Examples
+
+<CodeGroup>
+
+```bash Basic upload
+# Build and push a NuGet package
+dotnet pack -c Release
+hc artifact push nuget my-registry ./bin/Release/MyLib.1.0.0.nupkg \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash With nested path
+# Upload with custom path organization
+hc artifact push nuget my-registry ./MyLib.1.0.0.nupkg \
+  --path mycompany/libraries \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash Multiple packages
+# Upload all packages in a directory
+for pkg in ./bin/Release/*.nupkg; do
+  hc artifact push nuget my-registry "$pkg" \
+    --pkg-url https://app.harness.io/registry/pkg
+done
+```
+
+</CodeGroup>
+
+## NuGet.config configuration
+
+Create a `NuGet.config` file in your solution or repository root:
+
+```xml NuGet.config
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="Harness" value="https://<registry-url>/v3/index.json" />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
+  </packageSources>
+  
+  <packageSourceCredentials>
+    <Harness>
+      <add key="Username" value="your-username" />
+      <add key="ClearTextPassword" value="your-harness-token" />
+    </Harness>
+  </packageSourceCredentials>
+</configuration>
+```
+
+<Warning>
+  Store credentials securely. Use environment variables or credential providers in CI/CD environments.
+</Warning>
+
+## CI/CD integration
+
+<Tabs>
+  <Tab title="GitHub Actions">
+    ```yaml
+    - name: Build and publish
+      run: |
+        dotnet pack -c Release
+        hc artifact push nuget my-registry ./bin/Release/*.nupkg \
+          --pkg-url https://app.harness.io/registry/pkg
+      env:
+        HARNESS_API_KEY: ${{ secrets.HARNESS_API_KEY }}
+    ```
+  </Tab>
+  
+  <Tab title="Azure Pipelines">
+    ```yaml
+    - task: DotNetCoreCLI@2
+      inputs:
+        command: 'pack'
+        configuration: 'Release'
+    
+    - script: |
+        hc artifact push nuget my-registry $(Build.ArtifactStagingDirectory)/*.nupkg \
+          --pkg-url $(PKG_URL)
+      env:
+        HARNESS_API_KEY: $(HARNESS_TOKEN)
+    ```
+  </Tab>
+</Tabs>
+
+## Package versioning
+
+NuGet uses semantic versioning (SemVer 2.0):
+
+- Release: `1.0.0`
+- Pre-release: `1.0.0-alpha`, `1.0.0-beta.1`
+- Build metadata: `1.0.0+20231201`
+
+Set version in `.csproj`:
+
+```xml
+<PropertyGroup>
+  <Version>1.0.0</Version>
+  <!-- Or use MSBuild properties -->
+  <Version>$(GitVersion)</Version>
+</PropertyGroup>
+```
+
+## Troubleshooting
+
+<Accordion title="Authentication failed">
+  Verify your credentials are configured:
+  
+  ```bash
+  # List configured sources
+  dotnet nuget list source
+  
+  # Update credentials
+  dotnet nuget update source Harness \
+    --username <username> \
+    --password <new-token> \
+    --store-password-in-clear-text
+  ```
+</Accordion>
+
+<Accordion title="Package not found">
+  Check the package was uploaded successfully:
+  
+  ```bash
+  hc artifact list --registry my-registry --format json
+  ```
+</Accordion>
+
+<Accordion title="Version conflict">
+  NuGet doesn't allow re-uploading the same version:
+  
+  ```bash
+  # Increment version
+  dotnet pack -c Release -p:Version=1.0.1
+  ```
+</Accordion>
+
+## See also
+
+- [Artifact push command](/commands/artifact/push)
+- [Artifact management guide](/guides/artifact-management)
+- [NuGet documentation](https://docs.microsoft.com/nuget/)

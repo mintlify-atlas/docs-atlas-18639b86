@@ -1,0 +1,509 @@
+---
+title: Global Flags
+description: Flags available to all hc commands for authentication and configuration
+---
+
+## Overview
+
+Global flags (also called persistent flags) are available to all `hc` commands. They control authentication, API endpoints, and output formatting. These flags override values from your saved configuration file and environment variables.
+
+## Configuration Precedence
+
+Configuration values are resolved in the following order (highest precedence first):
+
+1. **Command-line flags** - Flags passed directly to the command
+2. **Environment variables** - Shell environment variables
+3. **Config file** - Saved authentication configuration (`~/.harness/auth.json`)
+
+Each level overrides the previous levels.
+
+<Info>
+Command-line flags always take precedence. Use them to temporarily override your saved configuration without modifying the config file.
+</Info>
+
+## Available Global Flags
+
+### Authentication Flags
+
+<ParamField path="--api-url" type="string">
+  Base URL for the Harness API. This is typically `https://app.harness.io` for SaaS or your self-hosted Harness URL.
+  
+  **Environment variable**: `HARNESS_API_URL`
+  
+  **Config file field**: `base_url`
+  
+  ```bash
+  # SaaS
+  hc registry list --api-url https://app.harness.io
+  
+  # Self-hosted
+  hc registry list --api-url https://harness.company.com
+  ```
+  
+  <Note>
+  Don't include a trailing slash in the URL.
+  </Note>
+</ParamField>
+
+<ParamField path="--token" type="string">
+  Authentication token (API key) for authenticating with Harness. You can generate an API key in the Harness UI under Account Settings → Access Control → API Keys.
+  
+  **Environment variable**: `HARNESS_API_KEY`
+  
+  **Config file field**: `token`
+  
+  ```bash
+  hc registry list --token sat.abc123.xyz789...
+  ```
+  
+  <Warning>
+  Keep your token secure. Don't commit it to version control or share it publicly.
+  </Warning>
+</ParamField>
+
+<ParamField path="--account" type="string">
+  Harness account identifier. This is automatically extracted from your authentication token when you run `hc auth login`, but you can override it with this flag.
+  
+  **Environment variable**: None (automatically derived from token)
+  
+  **Config file field**: `account_id`
+  
+  ```bash
+  hc registry list --account myAccountId
+  ```
+</ParamField>
+
+### Scope Flags
+
+<ParamField path="--org" type="string">
+  Organization identifier. Required for operations that are scoped to an organization. Some commands (like IACM) have a separate `--org-id` flag that takes precedence.
+  
+  **Environment variable**: `HARNESS_ORG_ID`
+  
+  **Config file field**: `org_id`
+  
+  ```bash
+  hc registry list --org engineering
+  ```
+</ParamField>
+
+<ParamField path="--project" type="string">
+  Project identifier. Required for operations that are scoped to a project. Some commands (like IACM) have a separate `--project-id` flag that takes precedence.
+  
+  **Environment variable**: `HARNESS_PROJECT_ID`
+  
+  **Config file field**: `project_id`
+  
+  ```bash
+  hc registry list --project infrastructure
+  ```
+</ParamField>
+
+### Output Flags
+
+<ParamField path="--format" type="string" default="table">
+  Format for command output. Determines how results are displayed.
+  
+  **Supported values**:
+  - `table` - Human-readable table format (default)
+  - `json` - JSON output for parsing
+  - Other formats may be supported by specific commands
+  
+  **Config file field**: None (always defaults to `table`)
+  
+  ```bash
+  # Table format (default)
+  hc registry list --format table
+  
+  # JSON format
+  hc registry list --format json
+  ```
+  
+  <Info>
+  Use `--format json` when piping output to other tools like `jq` for processing.
+  </Info>
+</ParamField>
+
+<ParamField path="--verbose" type="boolean" short="-v">
+  Enable verbose logging to console. Shows detailed debug information including HTTP requests, responses, and timing information.
+  
+  **Config file field**: None (always defaults to `false`)
+  
+  ```bash
+  # Short form
+  hc registry list -v
+  
+  # Long form
+  hc registry list --verbose
+  ```
+  
+  <Note>
+  Verbose output is sent to stderr, while normal output goes to stdout. This allows you to redirect results while still seeing debug logs.
+  </Note>
+</ParamField>
+
+## Examples
+
+### Using Saved Configuration
+
+After running `hc auth login`, your configuration is saved:
+
+```bash
+# Uses saved config from ~/.harness/auth.json
+hc registry list
+```
+
+### Overriding with Flags
+
+```bash
+# Override org and project for one command
+hc registry list --org different-org --project different-project
+
+# Your saved config remains unchanged
+```
+
+### Using Environment Variables
+
+<CodeGroup>
+```bash Linux/macOS
+export HARNESS_API_URL=https://app.harness.io
+export HARNESS_API_KEY=sat.abc123.xyz789...
+export HARNESS_ORG_ID=engineering
+export HARNESS_PROJECT_ID=backend
+
+# Commands now use these values
+hc registry list
+hc iacm plan --workspace-id prod
+```
+
+```powershell Windows (PowerShell)
+$env:HARNESS_API_URL = "https://app.harness.io"
+$env:HARNESS_API_KEY = "sat.abc123.xyz789..."
+$env:HARNESS_ORG_ID = "engineering"
+$env:HARNESS_PROJECT_ID = "backend"
+
+# Commands now use these values
+hc registry list
+hc iacm plan --workspace-id prod
+```
+
+```cmd Windows (CMD)
+set HARNESS_API_URL=https://app.harness.io
+set HARNESS_API_KEY=sat.abc123.xyz789...
+set HARNESS_ORG_ID=engineering
+set HARNESS_PROJECT_ID=backend
+
+REM Commands now use these values
+hc registry list
+hc iacm plan --workspace-id prod
+```
+</CodeGroup>
+
+### Combining Methods
+
+```bash
+# Environment variables provide defaults
+export HARNESS_ORG_ID=engineering
+export HARNESS_PROJECT_ID=backend
+
+# Flag overrides environment variable for this command only
+hc iacm plan --workspace-id staging --project frontend
+
+# Next command uses environment variable again
+hc registry list  # Uses project=backend from env
+```
+
+### Different Environments
+
+```bash
+# Production
+hc registry list \
+  --api-url https://app.harness.io \
+  --token $PROD_TOKEN \
+  --org production \
+  --project core
+
+# Staging  
+hc registry list \
+  --api-url https://app.harness.io \
+  --token $STAGING_TOKEN \
+  --org staging \
+  --project core
+
+# Self-hosted
+hc registry list \
+  --api-url https://harness.company.com \
+  --token $INTERNAL_TOKEN \
+  --org internal \
+  --project infrastructure
+```
+
+### Debugging with Verbose Mode
+
+```bash
+# See detailed HTTP requests and responses
+hc iacm plan --workspace-id prod --verbose
+
+# Output includes:
+# - Request URLs and headers
+# - Response status codes
+# - Response bodies
+# - Timing information
+```
+
+### JSON Output for Automation
+
+```bash
+# Parse output with jq
+hc registry list --format json | jq '.[] | select(.name == "my-registry")'
+
+# Save output to file
+hc registry list --format json > registries.json
+
+# Use in scripts
+REGISTRY_COUNT=$(hc registry list --format json | jq 'length')
+echo "Found $REGISTRY_COUNT registries"
+```
+
+## Configuration File
+
+The configuration file is stored at `~/.harness/auth.json`:
+
+```json
+{
+  "base_url": "https://app.harness.io",
+  "token": "sat.abc123.xyz789...",
+  "account_id": "myAccountId",
+  "org_id": "engineering",
+  "project_id": "infrastructure"
+}
+```
+
+<Warning>
+This file contains sensitive credentials. Ensure it has appropriate permissions:
+```bash
+chmod 600 ~/.harness/auth.json
+```
+</Warning>
+
+### Creating Config File
+
+The easiest way to create the config file is with `hc auth login`:
+
+```bash
+hc auth login
+# Follow the prompts to authenticate
+```
+
+Alternatively, create it manually:
+
+```bash
+mkdir -p ~/.harness
+cat > ~/.harness/auth.json <<EOF
+{
+  "base_url": "https://app.harness.io",
+  "token": "your-token-here",
+  "account_id": "your-account-id",
+  "org_id": "your-org",
+  "project_id": "your-project"
+}
+EOF
+chmod 600 ~/.harness/auth.json
+```
+
+### Updating Config File
+
+You can update the config file in several ways:
+
+1. **Run `hc auth login` again** - Re-authenticates and updates the file
+2. **Edit manually** - Open `~/.harness/auth.json` in a text editor
+3. **Use environment variables** - Override without modifying the file
+
+## Environment Variables Reference
+
+<ResponseField name="HARNESS_API_URL" type="string">
+  Overrides `base_url` from config file. Sets the API base URL.
+  
+  ```bash
+  export HARNESS_API_URL=https://app.harness.io
+  ```
+</ResponseField>
+
+<ResponseField name="HARNESS_API_KEY" type="string">
+  Overrides `token` from config file. Sets the authentication token.
+  
+  ```bash
+  export HARNESS_API_KEY=sat.abc123.xyz789...
+  ```
+</ResponseField>
+
+<ResponseField name="HARNESS_ORG_ID" type="string">
+  Overrides `org_id` from config file. Sets the default organization.
+  
+  ```bash
+  export HARNESS_ORG_ID=engineering
+  ```
+</ResponseField>
+
+<ResponseField name="HARNESS_PROJECT_ID" type="string">
+  Overrides `project_id` from config file. Sets the default project.
+  
+  ```bash
+  export HARNESS_PROJECT_ID=infrastructure
+  ```
+</ResponseField>
+
+## Resolution Examples
+
+Here's how different configuration methods interact:
+
+### Example 1: Flag Overrides Everything
+
+```bash
+# Config file
+cat ~/.harness/auth.json
+# { "org_id": "production", ... }
+
+# Environment
+export HARNESS_ORG_ID=staging
+
+# Command with flag
+hc registry list --org development
+
+# Result: Uses org=development (flag wins)
+```
+
+### Example 2: Environment Overrides Config
+
+```bash
+# Config file
+cat ~/.harness/auth.json
+# { "org_id": "production", ... }
+
+# Environment
+export HARNESS_ORG_ID=staging
+
+# Command without flag
+hc registry list
+
+# Result: Uses org=staging (environment wins)
+```
+
+### Example 3: Config as Fallback
+
+```bash
+# Config file
+cat ~/.harness/auth.json
+# { "org_id": "production", ... }
+
+# No environment variable set
+# Command without flag
+hc registry list
+
+# Result: Uses org=production (config is used)
+```
+
+### Example 4: Partial Override
+
+```bash
+# Config file has both org and project
+cat ~/.harness/auth.json
+# { "org_id": "production", "project_id": "backend", ... }
+
+# Override only org
+hc registry list --org staging
+
+# Result: Uses org=staging, project=backend
+# (only org is overridden, project comes from config)
+```
+
+## Best Practices
+
+### Security
+
+1. **Use config file for development**: Store credentials securely in `~/.harness/auth.json`
+2. **Use environment variables for CI/CD**: Set `HARNESS_API_KEY` and other vars in your CI system
+3. **Never commit tokens**: Add `auth.json` to `.gitignore`
+4. **Rotate tokens regularly**: Generate new API keys periodically
+5. **Use service accounts**: Create dedicated service accounts for automation
+
+### Organization
+
+1. **Set defaults in config**: Put your most-used org/project in the config file
+2. **Override with flags when needed**: Use flags for one-off commands in different scopes
+3. **Use environment variables for scripts**: Set env vars at the top of scripts for clarity
+
+### Debugging
+
+1. **Enable verbose mode**: Use `--verbose` when troubleshooting API issues
+2. **Check precedence**: Remember flags > env vars > config file
+3. **Verify config file**: Check `~/.harness/auth.json` if authentication fails
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Not logged in. Please run 'hc auth login' first">
+    Your config file is missing or empty. Run:
+    
+    ```bash
+    hc auth login
+    ```
+    
+    Or provide credentials via flags:
+    ```bash
+    hc registry list \
+      --api-url https://app.harness.io \
+      --token your-token \
+      --account your-account
+    ```
+  </Accordion>
+
+  <Accordion title="Authentication failed / Invalid token">
+    Your token may have expired or been revoked:
+    
+    1. Generate a new API key in Harness UI
+    2. Run `hc auth login` with the new token
+    3. Or update `~/.harness/auth.json` manually
+  </Accordion>
+
+  <Accordion title="Organization/Project not found">
+    Verify the org/project identifiers are correct:
+    
+    ```bash
+    # Check what you're using
+    cat ~/.harness/auth.json
+    
+    # Try with explicit flags
+    hc registry list --org correct-org --project correct-project
+    ```
+    
+    Identifiers are case-sensitive and must match exactly.
+  </Accordion>
+
+  <Accordion title="Config file not being used">
+    Check that:
+    
+    1. File exists: `ls -la ~/.harness/auth.json`
+    2. File is valid JSON: `cat ~/.harness/auth.json | jq`
+    3. Environment variables aren't overriding it: `env | grep HARNESS`
+  </Accordion>
+
+  <Accordion title="Environment variable not working">
+    Make sure the variable is exported:
+    
+    ```bash
+    # Wrong - only sets for current command
+    HARNESS_ORG_ID=engineering hc registry list
+    
+    # Correct - exports for all subsequent commands
+    export HARNESS_ORG_ID=engineering
+    hc registry list
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## See Also
+
+- [Authentication](/authentication) - Setting up authentication with Harness
+- [IACM Commands](/commands/iacm/overview) - Using IACM commands
+- [Registry Commands](/commands/registry) - Using registry commands

@@ -1,0 +1,90 @@
+---
+title: Artifact Commands Overview
+description: Manage artifacts in Harness Artifact Registry
+---
+
+The `hc artifact` command group provides comprehensive artifact management capabilities for Harness Artifact Registry (HAR). Use these commands to list, get, push, pull, copy, delete, and manage metadata for artifacts across multiple package formats.
+
+## Available Commands
+
+<CardGroup cols={2}>
+  <Card title="list" icon="list" href="/commands/artifact/list">
+    List all artifacts in the registry
+  </Card>
+  <Card title="get" icon="magnifying-glass" href="/commands/artifact/get">
+    Get detailed information about artifacts
+  </Card>
+  <Card title="push" icon="arrow-up" href="/commands/artifact/push">
+    Push artifacts to the registry
+  </Card>
+  <Card title="pull" icon="arrow-down" href="/commands/artifact/pull">
+    Pull artifacts from the registry
+  </Card>
+  <Card title="copy" icon="copy" href="/commands/artifact/copy">
+    Copy artifacts between registries
+  </Card>
+  <Card title="delete" icon="trash" href="/commands/artifact/delete">
+    Delete artifacts or versions
+  </Card>
+  <Card title="metadata" icon="tags" href="/commands/artifact/metadata">
+    Manage artifact metadata
+  </Card>
+</CardGroup>
+
+## Supported Package Types
+
+Harness Artifact Registry supports the following package types:
+
+- **Generic** - Any file type
+- **NPM** - Node.js packages (.tgz)
+- **Maven** - Java packages (.jar, .war)
+- **Python** - Python packages (.whl, .tar.gz)
+- **Go** - Go modules
+- **NuGet** - .NET packages (.nupkg)
+- **Docker** - Container images
+- **Cargo** - Rust packages (.crate)
+- **Dart** - Dart/Flutter packages (.tar.gz)
+- **Composer** - PHP packages
+- **Conda** - Conda packages
+- **RPM** - Red Hat packages
+
+## Common Flags
+
+Most artifact commands support these common flags:
+
+<ParamField path="--registry" type="string" required>
+  Registry identifier where the artifact resides
+</ParamField>
+
+<ParamField path="--pkg-url" type="string">
+  Base URL for the Packages API (defaults to account API base URL)
+</ParamField>
+
+## Authentication
+
+All artifact commands require authentication. Ensure you are logged in using `hc login` before executing artifact commands.
+
+## Examples
+
+<CodeGroup>
+```bash List artifacts
+hc artifact list --registry my-registry
+```
+
+```bash Push NPM package
+hc artifact push npm my-registry ./package.tgz --pkg-url https://app.harness.io
+```
+
+```bash Get artifact details
+hc artifact get nginx --registry docker-registry
+```
+
+```bash Copy artifact
+hc artifact copy source-registry/nginx/1.21.0 dest-registry
+```
+</CodeGroup>
+
+## See Also
+
+- [Registry Commands](/commands/registry/overview) - Manage registries
+- [Authentication](/commands/login) - Login to Harness

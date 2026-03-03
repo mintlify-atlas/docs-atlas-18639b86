@@ -1,0 +1,546 @@
+---
+title: Output Formats
+description: Understanding JSON and table output formats in Harness CLI
+---
+
+Harness CLI supports two output formats: human-readable tables and machine-readable JSON. You can control the output format globally or per-command.
+
+## Format Selection
+
+Specify the output format using the `--format` flag:
+
+<CodeGroup>
+```bash Table Format (Default)
+hc registry list --format table
+```
+
+```bash JSON Format
+hc registry list --format json
+```
+</CodeGroup>
+
+<Note>
+  The default format is `table`. If no format is specified, CLI outputs human-readable tables.
+</Note>
+
+## Table Output
+
+Table format displays data in boxed, human-readable tables with headers.
+
+### Features
+
+- **Boxed layout**: Clean borders around data
+- **Headers**: Column names clearly labeled
+- **Pagination info**: Page and item counts displayed
+- **Custom column mapping**: Commands can customize column order and names
+- **Auto-formatting**: Values automatically converted to strings
+
+### Example Output
+
+```bash
+hc registry list --format table
+```
+
+```
+┌──────────────┬──────────────┬─────────┬───────────────┬─────────────┬────────────────────────────────┐
+│ Registry     │ Package Type │ Size    │ Registry Type │ Description │ Link                           │
+├──────────────┼──────────────┼─────────┼───────────────┼─────────────┼────────────────────────────────┤
+│ docker-prod  │ DOCKER       │ 1.2 GB  │ VIRTUAL       │ Production  │ https://app.harness.io/...     │
+│ npm-libs     │ NPM          │ 450 MB  │ VIRTUAL       │ NPM Libs    │ https://app.harness.io/...     │
+│ maven-repo   │ MAVEN        │ 2.1 GB  │ VIRTUAL       │ Maven       │ https://app.harness.io/...     │
+└──────────────┴──────────────┴─────────┴───────────────┴─────────────┴────────────────────────────────┘
+Page 0 of 1 (Total: 3)
+```
+
+### Column Mapping
+
+Commands define custom column mappings to control display:
+
+```go
+printer.Print(response.JSON200.Data.Registries, pageIndex, pageCount, itemCount, true, [][]string{
+    {"identifier", "Registry"},
+    {"packageType", "Package Type"},
+    {"registrySize", "Size"},
+    {"type", "Registry Type"},
+    {"description", "Description"},
+    {"url", "Link"},
+})
+```
+
+The mapping format is: `[["fieldName", "Display Name"], ...]`
+
+### Missing Values
+
+If a field is missing from the data, the table displays `-`:
+
+```
+┌──────────────┬─────────────┐
+│ Registry     │ Description │
+├──────────────┼─────────────┤
+│ docker-prod  │ Production  │
+│ npm-libs     │ -           │
+└──────────────┴─────────────┘
+```
+
+### Implementation
+
+The table renderer:
+1. Converts data to JSON internally
+2. Applies column mapping for ordering
+3. Creates header row from display names
+4. Formats each data row according to mapping
+5. Renders using `pterm.DefaultTable`
+
+```go
+func jsonToTableWithMapping(jsonStr string, mapping ColumnMapping) error {
+    var rows []map[string]interface{}
+    json.Unmarshal([]byte(jsonStr), &rows)
+    
+    // Build header from mapping
+    var header []string
+    for _, m := range mapping {
+        header = append(header, m[1]) // Display name
+    }
+    
+    table := pterm.TableData{header}
+    
+    // Build rows
+    for _, r := range rows {
+        row := make([]string, len(header))
+        for i, m := range mapping {
+            val, ok := r[m[0]] // Original field name
+            if !ok {
+                row[i] = "-"
+            } else {
+                row[i] = fmt.Sprint(val)
+            }
+        }
+        table = append(table, row)
+    }
+    
+    return pterm.DefaultTable.
+        WithHasHeader().
+        WithBoxed(true).
+        WithData(table).
+        Render()
+}
+```
+
+## JSON Output
+
+JSON format outputs structured data suitable for parsing by scripts and tools.
+
+### Features
+
+- **Pretty-printed**: Indented with 2 spaces by default
+- **Complete data**: All fields included (no filtering)
+- **Machine-readable**: Easy to parse with `jq`, scripts, etc.
+- **Pagination metadata**: Optional pagination info (disabled by default)
+
+### Example Output
+
+```bash
+hc registry list --format json
+```
+
+```json
+[
+  {
+    "identifier": "docker-prod",
+    "packageType": "DOCKER",
+    "registrySize": "1.2 GB",
+    "type": "VIRTUAL",
+    "description": "Production Docker registry",
+    "url": "https://app.harness.io/ng/#/account/abc/...",
+    "createdAt": 1699564800000,
+    "modifiedAt": 1699651200000
+  },
+  {
+    "identifier": "npm-libs",
+    "packageType": "NPM",
+    "registrySize": "450 MB",
+    "type": "VIRTUAL",
+    "description": "NPM Libraries",
+    "url": "https://app.harness.io/ng/#/account/abc/...",
+    "createdAt": 1699478400000,
+    "modifiedAt": 1699564800000
+  }
+]
+```
+
+### Compact JSON
+
+For minimal output without indentation, modify the indent settings:
+
+```go
+jsonOpts := printer.DefaultJsonOptions()
+jsonOpts.Indent = false
+printer.PrintJsonWithOptions(data, jsonOpts)
+```
+
+### JSON with Pagination
+
+Enable pagination info in JSON output:
+
+```go
+jsonOpts := printer.DefaultJsonOptions()
+jsonOpts.ShowPagination = true
+jsonOpts.PageIndex = 0
+jsonOpts.PageCount = 5
+jsonOpts.ItemCount = 42
+printer.PrintJsonWithOptions(data, jsonOpts)
+```
+
+Output:
+```json
+[...data...]
+Page 0 of 5 (Total: 42)
+```
+
+<Warning>
+  Pagination info is written as plain text after the JSON, making the output invalid JSON. Only enable this for human review, not for parsing.
+</Warning>
+
+### Implementation
+
+The JSON renderer:
+
+```go
+func PrintJsonWithOptions(res any, options JsonOptions) error {
+    writer := options.Writer
+    if writer == nil {
+        writer = os.Stdout
+    }
+    
+    encoder := json.NewEncoder(writer)
+    
+    if options.Indent {
+        indent := ""
+        for i := 0; i < options.IndentSize; i++ {
+            indent += " "
+        }
+        encoder.SetIndent(options.IndentPrefix, indent)
+    }
+    
+    if err := encoder.Encode(res); err != nil {
+        return fmt.Errorf("failed to encode JSON: %w", err)
+    }
+    
+    if options.ShowPagination {
+        fmt.Fprintf(writer, "Page %d of %d (Total: %d)\n",
+            options.PageIndex, options.PageCount, options.ItemCount)
+    }
+    
+    return nil
+}
+```
+
+## Parsing JSON Output
+
+### Using jq
+
+<CodeGroup>
+```bash Extract Specific Fields
+hc registry list --format json | jq '.[] | {name: .identifier, type: .packageType}'
+```
+
+```bash Filter Results
+hc registry list --format json | jq '.[] | select(.packageType == "DOCKER")'
+```
+
+```bash Get Registry Names
+hc registry list --format json | jq -r '.[].identifier'
+```
+
+```bash Count Items
+hc registry list --format json | jq 'length'
+```
+</CodeGroup>
+
+### Using Python
+
+```python
+import json
+import subprocess
+
+# Run command and capture output
+result = subprocess.run(
+    ['hc', 'registry', 'list', '--format', 'json'],
+    capture_output=True,
+    text=True
+)
+
+# Parse JSON
+registries = json.loads(result.stdout)
+
+# Process data
+for registry in registries:
+    print(f"{registry['identifier']}: {registry['packageType']}")
+```
+
+### Using Shell Script
+
+```bash
+#!/bin/bash
+
+# Get all Docker registries
+docker_registries=$(hc registry list --format json | \
+  jq -r '.[] | select(.packageType == "DOCKER") | .identifier')
+
+# Process each registry
+for registry in $docker_registries; do
+  echo "Processing $registry..."
+  # Do something with registry
+done
+```
+
+## Format Configuration
+
+### Setting Default Format
+
+<Tabs>
+  <Tab title="Per Command">
+    ```bash
+    # Always specify format flag
+    hc registry list --format json
+    ```
+  </Tab>
+  
+  <Tab title="Environment Variable">
+    ```bash
+    # Set default format via environment
+    export HARNESS_FORMAT="json"
+    hc registry list
+    ```
+  </Tab>
+  
+  <Tab title="Shell Alias">
+    ```bash
+    # Create alias for JSON output
+    alias hcj='hc --format json'
+    hcj registry list
+    ```
+  </Tab>
+</Tabs>
+
+### Global Format Flag
+
+The format flag is available on all commands:
+
+```go
+rootCmd.PersistentFlags().StringVar(&config.Global.Format, "format", "table", 
+    "Format of the result")
+```
+
+Default: `"table"`
+
+## Output Redirection
+
+### Save to File
+
+<CodeGroup>
+```bash Table to File
+hc registry list --format table > registries.txt
+```
+
+```bash JSON to File
+hc registry list --format json > registries.json
+```
+</CodeGroup>
+
+### Pipe to Other Commands
+
+<CodeGroup>
+```bash Count Lines in Table
+hc registry list --format table | wc -l
+```
+
+```bash Format JSON with jq
+hc registry list --format json | jq '.'
+```
+
+```bash Search Table Output
+hc registry list --format table | grep DOCKER
+```
+</CodeGroup>
+
+## Custom Output Options
+
+The printer package provides extensive customization:
+
+### PrintOptions Structure
+
+```go
+type PrintOptions struct {
+    Format         string        // "json" or "table"
+    Writer         io.Writer     // Output destination
+    PageIndex      int64         // Current page (0-indexed)
+    PageCount      int64         // Total pages
+    ItemCount      int64         // Total items
+    ShowPagination bool          // Display pagination info
+    JsonIndent     bool          // Pretty-print JSON
+    ColumnMapping  [][]string    // Table column configuration
+}
+```
+
+### Using Custom Options
+
+```go
+options := printer.DefaultPrintOptions()
+options.Format = "json"
+options.JsonIndent = true
+options.ShowPagination = false
+
+printer.PrintWithOptions(data, options)
+```
+
+## Pagination Display
+
+### Table Format Pagination
+
+Always shown below the table:
+
+```
+┌──────────────┬──────────────┐
+│ Registry     │ Package Type │
+├──────────────┼──────────────┤
+│ docker-prod  │ DOCKER       │
+│ npm-libs     │ NPM          │
+└──────────────┴──────────────┘
+Page 0 of 3 (Total: 25)
+```
+
+### JSON Format Pagination
+
+Disabled by default, but can be enabled:
+
+```json
+[...]
+Page 0 of 3 (Total: 25)
+```
+
+### Controlling Pagination Display
+
+```bash
+# Commands control pagination via Print() call
+printer.Print(
+    data,
+    pageIndex,     // Current page
+    pageCount,     // Total pages  
+    itemCount,     // Total items
+    showPagination, // true/false
+    columnMapping,
+)
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Interactive Use" icon="user">
+    Use **table format** for:
+    - Manual inspection
+    - Quick overviews
+    - Human-readable output
+    - Terminal display
+  </Card>
+  
+  <Card title="Automation" icon="robot">
+    Use **JSON format** for:
+    - Scripts and automation
+    - CI/CD pipelines
+    - Data processing
+    - Integration with other tools
+  </Card>
+  
+  <Card title="Large Datasets" icon="database">
+    For large datasets:
+    - Use pagination flags
+    - Filter with jq for JSON
+    - Redirect to files
+    - Process incrementally
+  </Card>
+  
+  <Card title="Version Control" icon="code-branch">
+    Committing output:
+    - Use JSON for consistency
+    - Enable compact mode
+    - Disable pagination info
+    - Sort results if possible
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Table output is garbled">
+    Ensure your terminal supports Unicode box-drawing characters. If not:
+    ```bash
+    hc registry list --format json | jq
+    ```
+  </Accordion>
+
+  <Accordion title="JSON output is not valid">
+    Check if pagination is enabled. Disable it for valid JSON:
+    ```bash
+    hc registry list --format json
+    ```
+    The CLI disables pagination info by default for JSON output.
+  </Accordion>
+
+  <Accordion title="How to get raw, unformatted data?">
+    Use JSON format with compact output:
+    ```go
+    jsonOpts := printer.DefaultJsonOptions()
+    jsonOpts.Indent = false
+    printer.PrintJsonWithOptions(data, jsonOpts)
+    ```
+  </Accordion>
+
+  <Accordion title="Table columns are not aligned">
+    This is a known issue with wide data. Solutions:
+    1. Use JSON format and process with jq
+    2. Select specific columns if the command supports it
+    3. Increase terminal width
+  </Accordion>
+
+  <Accordion title="How to change column order in tables?">
+    Column order is defined by each command's column mapping. You can:
+    1. Use JSON output and process with jq
+    2. Pipe table output through awk/cut to reorder
+  </Accordion>
+</AccordionGroup>
+
+## Examples
+
+### Export All Registries to CSV
+
+```bash
+hc registry list --format json | \
+  jq -r '(.[0] | keys_unsorted) as $keys | $keys, (map([.[ $keys[] ]])[] ) | @csv' > registries.csv
+```
+
+### Monitor Registry Count
+
+```bash
+#!/bin/bash
+while true; do
+  count=$(hc registry list --format json | jq 'length')
+  echo "$(date): $count registries"
+  sleep 300
+done
+```
+
+### Compare Registries Across Environments
+
+```bash
+# Production
+export HARNESS_API_URL=https://app.harness.io
+hc registry list --format json > prod-registries.json
+
+# Staging
+export HARNESS_API_URL=https://app.staging.harness.io  
+hc registry list --format json > staging-registries.json
+
+# Compare
+diff <(jq -S . prod-registries.json) <(jq -S . staging-registries.json)
+```

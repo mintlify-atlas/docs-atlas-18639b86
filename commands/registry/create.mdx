@@ -1,0 +1,241 @@
+---
+title: hc registry create
+description: Create a new Harness Artifact Registry
+---
+
+Create a new registry in Harness Artifact Registry with a specified identifier, package type, and optional description.
+
+<Warning>
+This command is currently under development and not yet implemented in the CLI.
+</Warning>
+
+## Usage
+
+```bash
+hc registry create [identifier] [flags]
+```
+
+## Arguments
+
+<ParamField path="identifier" type="string" required>
+  Unique identifier for the registry. Must follow naming conventions:
+  - Only lowercase letters, numbers, hyphens, and underscores
+  - Must start with a letter
+  - Maximum 63 characters
+</ParamField>
+
+## Options
+
+<ParamField path="--description" type="string">
+  Description of the registry
+</ParamField>
+
+<ParamField path="--package-type" type="string" default="DOCKER">
+  Package type for the registry. Supported types:
+  - DOCKER
+  - MAVEN
+  - NPM
+  - HELM
+  - PYTHON
+  - NUGET
+  - GO
+  - GENERIC
+  - CONDA
+  - COMPOSER
+  - DART
+</ParamField>
+
+## Examples (Planned)
+
+### Create a Docker Registry
+
+```bash
+hc registry create my-docker-registry \
+  --package-type DOCKER \
+  --description "Production Docker images"
+```
+
+### Create an NPM Registry
+
+```bash
+hc registry create npm-packages \
+  --package-type NPM \
+  --description "Internal NPM packages for frontend applications"
+```
+
+### Create a Maven Registry
+
+```bash
+hc registry create maven-releases \
+  --package-type MAVEN \
+  --description "Maven release artifacts"
+```
+
+### Create a Python Registry
+
+```bash
+hc registry create pypi-internal \
+  --package-type PYTHON \
+  --description "Internal Python packages"
+```
+
+### Create a Generic Registry
+
+```bash
+hc registry create generic-artifacts \
+  --package-type GENERIC \
+  --description "Generic file storage for build artifacts"
+```
+
+## Supported Package Types
+
+<CodeGroup>
+
+```bash DOCKER
+hc registry create my-docker-reg --package-type DOCKER
+```
+
+```bash NPM
+hc registry create my-npm-reg --package-type NPM
+```
+
+```bash MAVEN
+hc registry create my-maven-reg --package-type MAVEN
+```
+
+```bash PYTHON
+hc registry create my-pypi-reg --package-type PYTHON
+```
+
+```bash HELM
+hc registry create my-helm-reg --package-type HELM
+```
+
+```bash NUGET
+hc registry create my-nuget-reg --package-type NUGET
+```
+
+```bash GO
+hc registry create my-go-reg --package-type GO
+```
+
+```bash GENERIC
+hc registry create my-generic-reg --package-type GENERIC
+```
+
+</CodeGroup>
+
+## Package Type Details
+
+| Package Type | Use Case | Typical Clients |
+|--------------|----------|----------------|
+| DOCKER | Container images | docker, podman |
+| NPM | Node.js packages | npm, yarn, pnpm |
+| MAVEN | Java artifacts | mvn, gradle |
+| PYTHON | Python packages | pip, poetry, pipenv |
+| HELM | Kubernetes charts | helm |
+| NUGET | .NET packages | nuget, dotnet |
+| GO | Go modules | go get |
+| GENERIC | Any file type | curl, wget |
+| CONDA | Conda packages | conda |
+| COMPOSER | PHP packages | composer |
+| DART | Dart/Flutter packages | dart, flutter |
+
+## Registry Naming Conventions
+
+Registry identifiers must follow these rules:
+
+- **Allowed characters**: lowercase letters (a-z), numbers (0-9), hyphens (-), underscores (_)
+- **First character**: Must be a letter
+- **Length**: 1-63 characters
+- **Uniqueness**: Must be unique within the account/org/project scope
+
+### Valid Names
+
+```bash
+my-docker-registry
+npm_packages
+registry123
+maven-snapshots
+```
+
+### Invalid Names
+
+```bash
+My-Docker-Registry  # Contains uppercase
+123-registry        # Starts with number
+my.docker.registry  # Contains periods
+my docker registry  # Contains spaces
+```
+
+## Registry Hierarchy
+
+Registries are created at the project level by default. The scope is determined by your authentication context:
+
+```bash
+# Project-level registry (default)
+hc registry create my-registry --project my-project
+
+# Organization-level registry
+hc registry create my-registry --org my-org --project ""
+
+# Account-level registry
+hc registry create my-registry --org "" --project ""
+```
+
+## Default Settings
+
+When created, registries have these default settings:
+
+- **Package type**: DOCKER (if not specified)
+- **Registry type**: VIRTUAL (supports upstream registries)
+- **Access**: Private (authentication required)
+- **Cleanup policies**: None (manual cleanup required)
+
+## After Creation
+
+Once created, you can:
+
+1. **Configure client access**:
+   ```bash
+   hc registry configure npm --registry my-npm-registry
+   ```
+
+2. **Add metadata**:
+   ```bash
+   hc registry metadata set --registry my-registry --metadata "env:prod,team:platform"
+   ```
+
+3. **View details**:
+   ```bash
+   hc registry get my-registry
+   ```
+
+## Implementation Status
+
+<Info>
+This command structure is defined but the implementation returns:
+```
+registry create command not yet implemented
+```
+
+Use the Harness UI to create registries until CLI support is complete.
+</Info>
+
+## Alternative: Create via UI
+
+To create a registry using the Harness UI:
+
+1. Navigate to **Artifacts** > **Registries**
+2. Click **+ New Registry**
+3. Select package type
+4. Enter identifier and description
+5. Configure advanced settings
+6. Click **Create**
+
+## Related Commands
+
+- [hc registry list](/commands/registry/list) - List existing registries
+- [hc registry get](/commands/registry/get) - Get registry details
+- [hc registry delete](/commands/registry/delete) - Delete a registry
+- [hc registry configure](/commands/registry/configure) - Configure package managers

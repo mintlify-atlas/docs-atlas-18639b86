@@ -1,0 +1,251 @@
+---
+title: Composer packages
+description: Publish and install PHP Composer packages with Harness Artifact Registry
+---
+
+Harness Artifact Registry provides support for PHP Composer packages, allowing you to host private PHP libraries.
+
+## Overview
+
+Composer registry features:
+- Standard Composer repository protocol
+- Package metadata from `composer.json`
+- Version management
+- PSR-4 autoloading support
+- Integration with Composer CLI
+
+## Pushing Composer packages
+
+Use the `hc artifact push composer` command:
+
+```bash
+hc artifact push composer <registry-name> <package-file-path> \
+  --pkg-url <pkg-url>
+```
+
+<Note>
+  Package files are typically `.zip` archives containing your PHP source code and `composer.json`
+</Note>
+
+## Creating Composer packages
+
+<Steps>
+  <Step title="Create composer.json">
+    Define your package metadata:
+    
+    ```json composer.json
+    {
+      "name": "vendor/package-name",
+      "description": "My PHP library",
+      "version": "1.0.0",
+      "type": "library",
+      "require": {
+        "php": ">=8.0"
+      },
+      "autoload": {
+        "psr-4": {
+          "Vendor\\Package\\": "src/"
+        }
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Package your library">
+    Create a zip archive:
+    
+    ```bash
+    zip -r vendor-package-1.0.0.zip . -x '*.git*' 'vendor/*' 'tests/*'
+    ```
+  </Step>
+  
+  <Step title="Upload to registry">
+    Push the package:
+    
+    ```bash
+    hc artifact push composer my-registry ./vendor-package-1.0.0.zip \
+      --pkg-url https://app.harness.io/registry/pkg
+    ```
+  </Step>
+</Steps>
+
+## Installing Composer packages
+
+Configure Composer to use your Harness registry:
+
+### In composer.json
+
+Add the repository to your project's `composer.json`:
+
+```json composer.json
+{
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://<registry-url>/packages.json"
+    }
+  ],
+  "require": {
+    "vendor/package-name": "^1.0"
+  }
+}
+```
+
+### Authentication
+
+Configure authentication in `auth.json`:
+
+```json auth.json
+{
+  "http-basic": {
+    "<registry-url>": {
+      "username": "your-username",
+      "password": "your-harness-token"
+    }
+  }
+}
+```
+
+<Warning>
+  Add `auth.json` to `.gitignore` to avoid committing credentials
+</Warning>
+
+### Install packages
+
+```bash
+composer install
+```
+
+## Examples
+
+<CodeGroup>
+
+```bash Basic upload
+# Create and push a package
+zip -r mypackage-1.0.0.zip . -x '*.git*' 'vendor/*'
+hc artifact push composer my-registry ./mypackage-1.0.0.zip \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash With vendor prefix
+# Package with vendor/name structure
+zip -r acme-library-2.1.0.zip src/ composer.json
+hc artifact push composer my-registry ./acme-library-2.1.0.zip \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+</CodeGroup>
+
+## Composer.json requirements
+
+Minimal `composer.json`:
+
+```json
+{
+  "name": "vendor/package",
+  "version": "1.0.0",
+  "type": "library"
+}
+```
+
+Recommended fields:
+
+```json
+{
+  "name": "vendor/package",
+  "description": "Package description",
+  "version": "1.0.0",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Your Name",
+      "email": "you@example.com"
+    }
+  ],
+  "require": {
+    "php": ">=8.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Vendor\\Package\\": "src/"
+    }
+  }
+}
+```
+
+## Package naming
+
+Composer packages follow the convention:
+
+```
+vendor/package-name
+```
+
+Examples:
+- `acme/framework` ✅
+- `mycompany/utils` ✅
+- `mypackage` ❌ (missing vendor)
+
+## CI/CD integration
+
+<Tabs>
+  <Tab title="GitHub Actions">
+    ```yaml
+    - name: Package and publish
+      run: |
+        zip -r package-${{ github.ref_name }}.zip . -x '*.git*' 'vendor/*'
+        hc artifact push composer my-registry ./package-*.zip \
+          --pkg-url https://app.harness.io/registry/pkg
+      env:
+        HARNESS_API_KEY: ${{ secrets.HARNESS_API_KEY }}
+    ```
+  </Tab>
+  
+  <Tab title="GitLab CI">
+    ```yaml
+    publish:
+      script:
+        - zip -r package-$CI_COMMIT_TAG.zip . -x '*.git*' 'vendor/*'
+        - hc artifact push composer my-registry ./package-*.zip --pkg-url $PKG_URL
+      variables:
+        HARNESS_API_KEY: $HARNESS_TOKEN
+      only:
+        - tags
+    ```
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+<Accordion title="Invalid composer.json">
+  Validate your `composer.json`:
+  
+  ```bash
+  composer validate
+  ```
+</Accordion>
+
+<Accordion title="Package not found">
+  Ensure the package name in `composer.json` matches what you're requiring:
+  
+  ```bash
+  # Check uploaded packages
+  hc artifact list --registry my-registry
+  ```
+</Accordion>
+
+<Accordion title="Authentication failed">
+  Verify your `auth.json` configuration:
+  
+  ```bash
+  # Test authentication
+  composer diagnose
+  ```
+</Accordion>
+
+## See also
+
+- [Artifact push command](/commands/artifact/push)
+- [Artifact management guide](/guides/artifact-management)
+- [Composer documentation](https://getcomposer.org/doc/)

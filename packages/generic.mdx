@@ -1,0 +1,168 @@
+---
+title: Generic packages
+description: Store any file type in Harness Artifact Registry as a generic artifact
+---
+
+Generic packages allow you to store any file type in Harness Artifact Registry. This is useful for binaries, archives, documentation, or any other files that don't fit into a specific package format.
+
+## Overview
+
+Generic artifacts support:
+- Any file type (executables, archives, documents, etc.)
+- Glob pattern uploads for multiple files
+- Custom file paths within packages
+- Version management
+- Metadata tagging
+
+## Pushing generic artifacts
+
+Use the `hc artifact push generic` command to upload files:
+
+```bash
+hc artifact push generic <registry-name> <file-path> \
+  --name <artifact-name> \
+  --version <version> \
+  --pkg-url <pkg-url>
+```
+
+### Required flags
+
+<ParamField path="--name" type="string" required>
+  Name for the artifact package
+</ParamField>
+
+<ParamField path="--pkg-url" type="string" required>
+  Base URL for the package service (e.g., `https://app.harness.io/registry/pkg`)
+</ParamField>
+
+### Optional flags
+
+<ParamField path="--version" type="string">
+  Version for the artifact. Defaults to `1.0.0`
+</ParamField>
+
+<ParamField path="--filename" type="string">
+  Name of the file being uploaded. Defaults to the actual filename
+</ParamField>
+
+<ParamField path="--path" type="string">
+  File path within the package. Defaults to the filename
+</ParamField>
+
+<ParamField path="--description" type="string">
+  Description of the artifact
+</ParamField>
+
+## Examples
+
+<CodeGroup>
+
+```bash Single file
+# Upload a binary
+hc artifact push generic my-registry ./myapp \
+  --name myapp \
+  --version 1.0.0 \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash Archive file
+# Upload a zip archive
+hc artifact push generic my-registry ./release.zip \
+  --name myproject \
+  --version 2.1.0 \
+  --filename release-v2.1.0.zip \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash With custom path
+# Upload with custom internal path
+hc artifact push generic my-registry ./data.json \
+  --name mydata \
+  --version 1.0.0 \
+  --path configs/production/data.json \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash Glob pattern
+# Upload multiple files matching pattern
+hc artifact push generic my-registry "./dist/*.zip" \
+  --name myapp \
+  --version 1.0.0 \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+</CodeGroup>
+
+## Pulling generic artifacts
+
+Download generic artifacts using the pull command:
+
+```bash
+hc artifact pull generic <registry-name> <package-path> <destination> \
+  --pkg-url <pkg-url>
+```
+
+### Example
+
+```bash
+hc artifact pull generic my-registry myapp/1.0.0/myapp ./downloads/ \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+## Use cases
+
+<Accordion title="Binary distributions">
+  Store compiled binaries, executables, or native libraries for different platforms.
+  
+  ```bash
+  hc artifact push generic builds ./myapp-linux-amd64 \
+    --name myapp \
+    --version 1.0.0 \
+    --path linux/amd64/myapp
+  ```
+</Accordion>
+
+<Accordion title="Documentation archives">
+  Store documentation bundles, PDFs, or help files.
+  
+  ```bash
+  hc artifact push generic docs ./docs.zip \
+    --name project-docs \
+    --version 1.0.0
+  ```
+</Accordion>
+
+<Accordion title="Configuration files">
+  Store configuration templates or environment-specific configs.
+  
+  ```bash
+  hc artifact push generic configs ./prod-config.yaml \
+    --name app-config \
+    --version 1.0.0 \
+    --path environments/production/config.yaml
+  ```
+</Accordion>
+
+<Accordion title="ML models">
+  Store trained machine learning models.
+  
+  ```bash
+  hc artifact push generic models ./model.pkl \
+    --name sentiment-model \
+    --version 2.0.0
+  ```
+</Accordion>
+
+## Best practices
+
+- Use semantic versioning for your artifacts
+- Include descriptive metadata for better organization
+- Use consistent naming conventions across packages
+- Leverage glob patterns for batch uploads
+- Document the purpose and usage in the description field
+
+## See also
+
+- [Artifact push command](/commands/artifact/push)
+- [Artifact pull command](/commands/artifact/pull)
+- [Artifact management guide](/guides/artifact-management)

@@ -1,0 +1,220 @@
+---
+title: hc registry get
+description: Get detailed information about Harness Artifact Registries
+---
+
+Retrieve detailed information about specific registries by searching with a name or identifier. This command supports filtering and pagination.
+
+## Usage
+
+```bash
+hc registry get [name] [flags]
+```
+
+## Arguments
+
+<ParamField path="name" type="string" optional>
+  Registry name or search term (optional). If provided, searches for registries matching this term.
+</ParamField>
+
+## Options
+
+<ParamField path="--package-type" type="string">
+  Filter registries by package type (DOCKER, NPM, MAVEN, etc.)
+</ParamField>
+
+<ParamField path="--page-size" type="int" default="10">
+  Number of items per page
+</ParamField>
+
+<ParamField path="--page" type="int" default="0">
+  Page number (zero-indexed)
+</ParamField>
+
+## Examples
+
+### Get All Registries
+
+Without arguments, lists all registries (same as `hc registry list`):
+
+```bash
+hc registry get
+```
+
+### Search by Name
+
+Find registries matching a search term:
+
+```bash
+hc registry get my-docker-reg
+```
+
+Search for registries containing "npm":
+
+```bash
+hc registry get npm
+```
+
+Search for production registries:
+
+```bash
+hc registry get prod
+```
+
+### Combine Search and Filters
+
+Search for Docker registries containing "prod":
+
+```bash
+hc registry get prod --package-type DOCKER
+```
+
+Search for NPM registries with custom pagination:
+
+```bash
+hc registry get frontend --package-type NPM --page-size 20
+```
+
+### Get Specific Registry Details
+
+```bash
+hc registry get my-docker-registry
+```
+
+### JSON Output
+
+```bash
+hc registry get my-docker-registry --format json
+```
+
+## Output
+
+The command displays detailed information in a table:
+
+| Column | Description |
+|--------|-------------|
+| Registry | Registry identifier |
+| Package Type | Type of packages stored |
+| Size | Total size of registry content |
+| Registry Type | Type (VIRTUAL, LOCAL, REMOTE, etc.) |
+| Description | Registry description |
+| Link | URL to the registry |
+
+### Example Output
+
+```bash
+$ hc registry get docker
+
+Registry            Package Type  Size        Registry Type  Description
+my-docker-reg       DOCKER        1.2 GB      VIRTUAL        Production Docker registry
+docker-remote       DOCKER        3.4 GB      REMOTE         Remote Docker Hub proxy
+docker-local        DOCKER        890 MB      LOCAL          Local Docker images
+
+Page 1 of 1 (Total: 3 registries)
+```
+
+## Search Behavior
+
+The search term matches against:
+- Registry identifier
+- Registry name
+- Registry description
+
+The search is case-insensitive and performs partial matching:
+
+```bash
+# All of these would match "my-docker-registry"
+hc registry get docker
+hc registry get my-docker
+hc registry get registry
+hc registry get DOCKER
+```
+
+## Filtering by Package Type
+
+Combine search with package type filters:
+
+<CodeGroup>
+
+```bash Docker
+hc registry get prod --package-type DOCKER
+```
+
+```bash NPM
+hc registry get frontend --package-type NPM
+```
+
+```bash Maven
+hc registry get releases --package-type MAVEN
+```
+
+```bash Python
+hc registry get pypi --package-type PYTHON
+```
+
+</CodeGroup>
+
+## Pagination
+
+Control pagination when search returns many results:
+
+```bash
+# Get 25 results per page
+hc registry get docker --page-size 25
+
+# Get second page
+hc registry get docker --page-size 20 --page 1
+```
+
+<Note>
+Page numbers are zero-indexed. The first page is `--page 0`, the second page is `--page 1`, etc.
+</Note>
+
+## Use Cases
+
+### Verify Registry Exists
+
+Check if a specific registry exists before using it:
+
+```bash
+hc registry get my-registry-name
+```
+
+### Find Registries by Type
+
+Locate all NPM registries in your account:
+
+```bash
+hc registry get --package-type NPM
+```
+
+### Search Production Registries
+
+Find all production registries:
+
+```bash
+hc registry get prod
+```
+
+### Inspect Registry Size
+
+Check the size of registries to identify large ones:
+
+```bash
+hc registry get --page-size 50 | sort -k3 -h
+```
+
+## Context
+
+The command searches within your current authentication context. To search in a different context:
+
+```bash
+hc registry get my-registry --account my-account --org my-org --project my-project
+```
+
+## Related Commands
+
+- [hc registry list](/commands/registry/list) - List all registries
+- [hc registry create](/commands/registry/create) - Create a new registry
+- [hc registry delete](/commands/registry/delete) - Delete a registry
+- [hc registry metadata get](/commands/registry/metadata) - View registry metadata

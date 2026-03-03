@@ -1,0 +1,212 @@
+---
+title: hc artifact pull
+description: Pull artifacts from Harness Artifact Registry
+---
+
+## Synopsis
+
+Pulls artifacts from Harness Artifact Registry to your local system. Currently supports generic package types with more package types coming soon.
+
+```bash
+hc artifact pull <package-type> <registry-name> <package-path> <destination-path> [flags]
+```
+
+## Supported Package Types
+
+<Tabs>
+  <Tab title="Generic">
+    Pull generic artifacts from the registry.
+
+    ### Usage
+    ```bash
+    hc artifact pull generic <registry-name> <package-path> <destination-path> [flags]
+    ```
+
+    ### Arguments
+
+    <ParamField path="registry-name" type="string" required>
+      Name of the registry containing the artifact
+    </ParamField>
+
+    <ParamField path="package-path" type="string" required>
+      Path to the package in format: `<package-name>/<version>/<filename>`
+    </ParamField>
+
+    <ParamField path="destination-path" type="string" required>
+      Local path where the file will be saved (directory or file path)
+    </ParamField>
+
+    ### Options
+
+    <ParamField path="--pkg-url" type="string" required>
+      Base URL for the Packages API
+    </ParamField>
+
+    ### Examples
+
+    ```bash
+    # Pull to directory
+    hc artifact pull generic my-registry app-config/1.0.0/config.json ./downloads \
+      --pkg-url https://app.harness.io
+    ```
+
+    ```bash
+    # Pull to specific file path
+    hc artifact pull generic my-registry release-bundle/2.1.0/archive.zip ./my-archive.zip \
+      --pkg-url https://app.harness.io
+    ```
+
+    ```bash
+    # Pull from nested package path
+    hc artifact pull generic my-registry libs/common/1.0.0/library.jar ./lib/ \
+      --pkg-url https://app.harness.io
+    ```
+
+    ### Behavior
+
+    #### Destination is a Directory
+    - If destination exists and is a directory, file is saved inside it
+    - Uses filename from Content-Disposition header or package path
+    - Creates directory if it doesn't exist
+
+    #### Destination is a File Path
+    - If destination includes a filename, saves to that exact path
+    - Creates parent directories if needed
+    - Overwrites existing file
+
+    ### Progress Tracking
+
+    The command shows download progress with file size and transfer speed:
+
+    ```
+    Pulling generic file 'config.json' from path 'config.json' (version '1.0.0') in registry 'my-registry'...
+    config.json [=====>    ] 54% (2.7 MB/5.0 MB) - 1.2 MB/s
+    Successfully downloaded generic file 'config.json' from path 'config.json' (version '1.0.0') in registry 'my-registry'
+    Saved to ./downloads/config.json (5242880 bytes)
+    ```
+
+    ### Output
+
+    After successful download, the command displays JSON with details:
+
+    ```json
+    {
+      "registry": "my-registry",
+      "package": "app-config",
+      "version": "1.0.0",
+      "filename": "config.json",
+      "size": "5.00 MB",
+      "path": "./downloads/config.json"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Package Path Format
+
+The package path follows this structure:
+
+```
+<package-name>/<version>/<filename>
+```
+
+**Components:**
+- `package-name` - Name of the package (can include nested paths)
+- `version` - Version of the package
+- `filename` - Specific file within the package version
+
+**Examples:**
+```
+app-config/1.0.0/config.json
+libs/common/2.1.0/library.jar
+releases/v3/3.0.0/release.zip
+```
+
+## Error Handling
+
+<AccordionGroup>
+  <Accordion title="Invalid package path format">
+    ```
+    Error: invalid format: expected '<SRC_REGISTRY>/<ARTIFACT_PATH>/<VERSION>'
+    ```
+    Ensure your package path has exactly three parts separated by slashes.
+  </Accordion>
+
+  <Accordion title="File not found">
+    ```
+    Error: server returned error: 404 Not Found
+    ```
+    Verify the package name, version, and filename are correct. Use `hc artifact get` to check available files.
+  </Accordion>
+
+  <Accordion title="Permission denied">
+    ```
+    Error: failed to create destination file: permission denied
+    ```
+    Check write permissions on the destination directory or file path.
+  </Accordion>
+
+  <Accordion title="Empty response">
+    ```
+    Error: received empty response from server
+    ```
+    The file may be corrupted or not properly uploaded. Try re-uploading the artifact.
+  </Accordion>
+</AccordionGroup>
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Download configuration files">
+    ```bash
+    hc artifact pull generic config-registry app-config/1.0.0/config.json ./config/ \
+      --pkg-url https://app.harness.io
+    ```
+    Pull configuration files for deployment or local development.
+  </Accordion>
+
+  <Accordion title="Retrieve build artifacts">
+    ```bash
+    hc artifact pull generic build-registry myapp/2.1.0/myapp.jar ./artifacts/ \
+      --pkg-url https://app.harness.io
+    ```
+    Download compiled artifacts for testing or deployment.
+  </Accordion>
+
+  <Accordion title="Get release packages">
+    ```bash
+    hc artifact pull generic release-registry product/3.0.0/release.zip ./releases/ \
+      --pkg-url https://app.harness.io
+    ```
+    Pull release bundles for distribution.
+  </Accordion>
+</AccordionGroup>
+
+## Tips
+
+<Tip>
+**List versions first** - Use `hc artifact get <package-name>` to see available versions before pulling.
+</Tip>
+
+<Note>
+**Content-Disposition header** - The actual filename is determined by the Content-Disposition header from the server, which may differ from the path component.
+</Note>
+
+<Tip>
+**Nested packages** - Package names can include slashes (e.g., `libs/common`). The last slash separates the version.
+</Tip>
+
+## Coming Soon
+
+Support for additional package types:
+- NPM packages
+- Maven artifacts
+- Python packages
+- Docker images
+- And more
+
+## See Also
+
+- [hc artifact push](/commands/artifact/push) - Push artifacts to registry
+- [hc artifact list](/commands/artifact/list) - List available artifacts
+- [hc artifact get](/commands/artifact/get) - Get artifact information

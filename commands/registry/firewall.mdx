@@ -1,0 +1,611 @@
+---
+title: hc registry firewall
+description: Audit and analyze dependencies for security vulnerabilities and policy compliance
+---
+
+The firewall commands help you audit dependencies for security vulnerabilities, license compliance, and policy violations before deploying or publishing artifacts.
+
+## Usage
+
+```bash
+hc registry firewall <subcommand> [flags]
+```
+
+## Alias
+
+You can use `fw` as a shorthand:
+
+```bash
+hc registry fw audit --registry my-npm-reg --file package-lock.json
+```
+
+## Available Subcommands
+
+| Subcommand | Description |
+|------------|-------------|
+| [audit](#audit-dependencies) | Parse and evaluate dependencies from lock files |
+| [explain](#explain-status) | Get detailed firewall status for a specific artifact |
+
+## Audit Dependencies
+
+Parse dependency lock files and evaluate all dependencies against firewall policies configured in your registry.
+
+### Usage
+
+```bash
+hc registry firewall audit --registry <registry-name> --file <lock-file> [flags]
+```
+
+### Options
+
+<ParamField path="--registry" type="string" required>
+  Registry name to evaluate against
+</ParamField>
+
+<ParamField path="--file" type="string" required>
+  Path to dependency lock file
+</ParamField>
+
+<ParamField path="--org" type="string" optional>
+  Organization identifier (defaults to global config)
+</ParamField>
+
+<ParamField path="--project" type="string" optional>
+  Project identifier (defaults to global config)
+</ParamField>
+
+### Supported Dependency Files
+
+#### NPM Registries
+
+- `package.json`
+- `package-lock.json`
+- `yarn.lock`
+- `pnpm-lock.yaml`
+
+#### Python Registries
+
+- `requirements.txt`
+- `pyproject.toml`
+- `Pipfile.lock`
+- `poetry.lock`
+
+#### Maven Registries
+
+- `pom.xml`
+- `build.gradle`
+- `build.gradle.kts`
+
+### Examples
+
+#### Audit NPM Dependencies
+
+<CodeGroup>
+
+```bash package-lock.json
+hc registry firewall audit \
+  --registry my-npm-registry \
+  --file package-lock.json
+```
+
+```bash yarn.lock
+hc registry firewall audit \
+  --registry my-npm-registry \
+  --file yarn.lock
+```
+
+```bash pnpm-lock.yaml
+hc registry firewall audit \
+  --registry my-npm-registry \
+  --file pnpm-lock.yaml
+```
+
+```bash package.json
+hc registry firewall audit \
+  --registry my-npm-registry \
+  --file package.json
+```
+
+</CodeGroup>
+
+#### Audit Python Dependencies
+
+<CodeGroup>
+
+```bash requirements.txt
+hc registry firewall audit \
+  --registry my-pypi-registry \
+  --file requirements.txt
+```
+
+```bash pyproject.toml
+hc registry firewall audit \
+  --registry my-pypi-registry \
+  --file pyproject.toml
+```
+
+```bash Pipfile.lock
+hc registry firewall audit \
+  --registry my-pypi-registry \
+  --file Pipfile.lock
+```
+
+```bash poetry.lock
+hc registry firewall audit \
+  --registry my-pypi-registry \
+  --file poetry.lock
+```
+
+</CodeGroup>
+
+#### Audit Maven Dependencies
+
+<CodeGroup>
+
+```bash pom.xml
+hc registry firewall audit \
+  --registry my-maven-registry \
+  --file pom.xml
+```
+
+```bash build.gradle
+hc registry firewall audit \
+  --registry my-maven-registry \
+  --file build.gradle
+```
+
+```bash build.gradle.kts
+hc registry firewall audit \
+  --registry my-maven-registry \
+  --file build.gradle.kts
+```
+
+</CodeGroup>
+
+### Audit Output
+
+```bash
+$ hc registry firewall audit --registry my-npm-registry --file package-lock.json
+
+✓ Found registry: abc123 (type: NPM)
+✓ Found 145 dependencies in package-lock.json
+✓ Bulk evaluation initiated with ID: eval-xyz789
+✓ Bulk evaluation completed successfully
+
+✓ Scan Results for 145 dependencies:
+
+✗ Blocked: 3
+⚠ Warnings: 12
+✓ Allowed: 128
+? Unknown: 2
+
+Package Name           Version    Status
+axios                  0.21.1     BLOCKED
+lodash                 4.17.20    BLOCKED
+node-fetch             2.6.0      BLOCKED
+moment                 2.29.1     WARN
+request                2.88.2     WARN
+express                4.17.1     ALLOWED
+react                  17.0.2     ALLOWED
+...
+```
+
+### Status Meanings
+
+| Status | Icon | Description |
+|--------|------|-------------|
+| BLOCKED | ✗ | Dependency violates firewall policy and should not be used |
+| WARN | ⚠ | Dependency has warnings but is not blocked |
+| ALLOWED | ✓ | Dependency passes all firewall policies |
+| UNKNOWN | ? | Dependency status could not be determined |
+
+### JSON Output
+
+```bash
+hc registry firewall audit \
+  --registry my-npm-registry \
+  --file package-lock.json \
+  --format json
+```
+
+```json
+[
+  {
+    "packageName": "axios",
+    "version": "0.21.1",
+    "scanId": "550e8400-e29b-41d4-a716-446655440000",
+    "scanStatus": "BLOCKED"
+  },
+  {
+    "packageName": "express",
+    "version": "4.17.1",
+    "scanId": "660e8400-e29b-41d4-a716-446655440001",
+    "scanStatus": "ALLOWED"
+  }
+]
+```
+
+## Explain Status
+
+Get detailed information about why a specific package version is blocked, warned, or allowed.
+
+### Usage
+
+```bash
+hc registry firewall explain \
+  --registry <registry-name> \
+  --package <package-name> \
+  --version <version> \
+  [flags]
+```
+
+### Options
+
+<ParamField path="--registry" type="string" required>
+  Registry name
+</ParamField>
+
+<ParamField path="--package" type="string" required>
+  Package name to explain
+</ParamField>
+
+<ParamField path="--version" type="string" required>
+  Package version to explain
+</ParamField>
+
+<ParamField path="--org" type="string" optional>
+  Organization identifier (defaults to global config)
+</ParamField>
+
+<ParamField path="--project" type="string" optional>
+  Project identifier (defaults to global config)
+</ParamField>
+
+### Examples
+
+#### Explain Why Package is Blocked
+
+```bash
+hc registry firewall explain \
+  --registry my-npm-registry \
+  --package axios \
+  --version 0.21.1
+```
+
+#### Explain Python Package
+
+```bash
+hc registry firewall explain \
+  --registry my-pypi-registry \
+  --package requests \
+  --version 2.25.1
+```
+
+#### Explain Maven Artifact
+
+```bash
+hc registry firewall explain \
+  --registry my-maven-registry \
+  --package "org.springframework:spring-core" \
+  --version "5.3.8"
+```
+
+### Explain Output
+
+```bash
+$ hc registry firewall explain --registry my-npm-registry --package axios --version 0.21.1
+
+✓ Found registry UUID: abc-123
+✓ Evaluation initiated with ID: eval-xyz
+✓ Evaluation completed successfully
+
+Scan Result
+   Package:     axios
+   Version:     0.21.1
+   Evaluation Status: BLOCKED
+   Evaluation ID:     550e8400-e29b-41d4-a716-446655440000
+
+✗ This artifact version is BLOCKED by the firewall
+
+Evaluation Details:
+============================================================
+Last Evaluated: 2024-03-15 14:32:10 UTC
+
+Security Fix Information:
+  Fix Available: true
+  Current Version: 0.21.1
+  Fix Version: 0.21.2
+
+Policy Set Violations:
+
+Policy Set 1: Production Security Policy
+Policy Set Ref: account.default/prod-security
+------------------------------------------------------------
+
+  1.1 Security
+      Policy Name: CVE Severity Threshold
+      Policy Ref: account.default/cve-threshold
+
+      Vulnerabilities:
+      CVE ID              CVSS Score  CVSS Threshold
+      CVE-2021-3749      7.5         7.0
+      CVE-2021-28918     5.3         7.0
+
+Policy Set 2: License Compliance
+Policy Set Ref: account.default/license-policy
+------------------------------------------------------------
+
+  2.1 License
+      Policy Name: Approved Licenses
+      Policy Ref: account.default/approved-licenses
+
+      Blocked License: GPL-3.0
+      Allowed Licenses: MIT, Apache-2.0, BSD-3-Clause
+```
+
+### Violation Categories
+
+The explain command shows detailed information for three policy categories:
+
+#### Security Violations
+
+Shows CVE vulnerabilities with CVSS scores:
+
+```
+Security
+  Policy Name: CVE Severity Threshold
+  
+  Vulnerabilities:
+  CVE ID         CVSS Score  CVSS Threshold
+  CVE-2021-3749  7.5         7.0
+  CVE-2022-1234  8.2         7.0
+```
+
+#### License Violations
+
+Shows license compliance issues:
+
+```
+License
+  Policy Name: Approved Licenses
+  
+  Blocked License: GPL-3.0
+  Allowed Licenses: MIT, Apache-2.0, BSD-3-Clause
+```
+
+#### Package Age Violations
+
+Shows package age policy violations:
+
+```
+PackageAge
+  Policy Name: Minimum Package Age
+  
+  Published On: 2024-03-01 10:00:00 UTC
+  Package Age Threshold: 7 days
+```
+
+## Workflow Integration
+
+### CI/CD Pipeline Integration
+
+Integrate firewall audits into your CI/CD:
+
+<CodeGroup>
+
+```yaml GitHub Actions
+name: Security Audit
+
+on: [push, pull_request]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Install Harness CLI
+        run: |
+          curl -L https://github.com/harness/harness-cli/releases/latest/download/hc-linux-amd64 -o hc
+          chmod +x hc
+          sudo mv hc /usr/local/bin/
+      
+      - name: Login to Harness
+        run: hc login --api-key ${{ secrets.HARNESS_API_KEY }}
+      
+      - name: Audit Dependencies
+        run: |
+          hc registry firewall audit \
+            --registry npm-prod \
+            --file package-lock.json
+      
+      - name: Fail on Blocked Dependencies
+        run: |
+          RESULT=$(hc registry firewall audit \
+            --registry npm-prod \
+            --file package-lock.json \
+            --format json)
+          
+          BLOCKED=$(echo "$RESULT" | jq '[.[] | select(.scanStatus == "BLOCKED")] | length')
+          
+          if [ "$BLOCKED" -gt 0 ]; then
+            echo "❌ Found $BLOCKED blocked dependencies"
+            exit 1
+          fi
+```
+
+```yaml GitLab CI
+firewall-audit:
+  stage: test
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache curl jq
+    - curl -L https://github.com/harness/harness-cli/releases/latest/download/hc-linux-amd64 -o hc
+    - chmod +x hc
+    - mv hc /usr/local/bin/
+    - hc login --api-key ${HARNESS_API_KEY}
+  script:
+    - |
+      hc registry firewall audit \
+        --registry npm-prod \
+        --file package-lock.json
+    - |
+      RESULT=$(hc registry firewall audit \
+        --registry npm-prod \
+        --file package-lock.json \
+        --format json)
+      BLOCKED=$(echo "$RESULT" | jq '[.[] | select(.scanStatus == "BLOCKED")] | length')
+      if [ "$BLOCKED" -gt 0 ]; then
+        echo "❌ Found $BLOCKED blocked dependencies"
+        exit 1
+      fi
+```
+
+```groovy Jenkins
+pipeline {
+    agent any
+    
+    stages {
+        stage('Audit Dependencies') {
+            steps {
+                sh '''
+                    hc registry firewall audit \
+                      --registry npm-prod \
+                      --file package-lock.json
+                '''
+                
+                script {
+                    def result = sh(
+                        script: '''
+                            hc registry firewall audit \
+                              --registry npm-prod \
+                              --file package-lock.json \
+                              --format json
+                        ''',
+                        returnStdout: true
+                    ).trim()
+                    
+                    def json = readJSON text: result
+                    def blocked = json.findAll { it.scanStatus == 'BLOCKED' }
+                    
+                    if (blocked.size() > 0) {
+                        error("Found ${blocked.size()} blocked dependencies")
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+</CodeGroup>
+
+### Pre-commit Hook
+
+Add a pre-commit hook to audit before committing:
+
+```bash
+#!/bin/bash
+# .git/hooks/pre-commit
+
+echo "Running dependency audit..."
+
+if [ -f package-lock.json ]; then
+  RESULT=$(hc registry firewall audit \
+    --registry npm-prod \
+    --file package-lock.json \
+    --format json 2>/dev/null)
+  
+  BLOCKED=$(echo "$RESULT" | jq '[.[] | select(.scanStatus == "BLOCKED")] | length')
+  
+  if [ "$BLOCKED" -gt 0 ]; then
+    echo "❌ Commit blocked: Found $BLOCKED blocked dependencies"
+    echo "Run 'hc registry firewall audit --registry npm-prod --file package-lock.json' for details"
+    exit 1
+  fi
+  
+  echo "✓ All dependencies passed firewall audit"
+fi
+```
+
+### Pre-publish Script
+
+Add to `package.json`:
+
+```json
+{
+  "scripts": {
+    "prepublishOnly": "hc registry firewall audit --registry npm-prod --file package-lock.json"
+  }
+}
+```
+
+## Remediation Workflow
+
+1. **Identify Blocked Dependencies**:
+   ```bash
+   hc registry firewall audit --registry my-npm-registry --file package-lock.json
+   ```
+
+2. **Get Details for Each Blocked Package**:
+   ```bash
+   hc registry firewall explain \
+     --registry my-npm-registry \
+     --package axios \
+     --version 0.21.1
+   ```
+
+3. **Update to Fix Version**:
+   ```bash
+   npm install axios@0.21.2
+   ```
+
+4. **Re-audit**:
+   ```bash
+   hc registry firewall audit --registry my-npm-registry --file package-lock.json
+   ```
+
+## Error Messages
+
+### File Not Supported
+
+```
+file 'README.md' is not compatible with package type 'NPM'. 
+Valid files for NPM: package.json, package-lock.json, yarn.lock, pnpm-lock.yaml
+```
+
+**Solution**: Use a supported lock file for the package type.
+
+### Registry Not Found
+
+```
+Registry 'nonexistent-registry' not found
+```
+
+**Solution**: Verify registry name:
+```bash
+hc registry list --package-type NPM
+```
+
+### Package Type Mismatch
+
+```
+file 'pom.xml' is not compatible with package type 'NPM'
+```
+
+**Solution**: Ensure the lock file matches the registry's package type.
+
+## Best Practices
+
+1. **Automate Audits**: Run in CI/CD on every commit
+2. **Gate Deployments**: Block deployments with blocked dependencies
+3. **Regular Scans**: Audit dependencies weekly even without changes
+4. **Fix Immediately**: Address blocked dependencies before merging
+5. **Monitor Warnings**: Track warnings and plan updates
+6. **Document Exceptions**: Record why specific packages are allowed
+
+## Related Commands
+
+- [hc registry list](/commands/registry/list) - List registries
+- [hc registry get](/commands/registry/get) - Get registry details
+- [hc registry configure](/commands/registry/configure) - Configure package managers

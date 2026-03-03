@@ -1,0 +1,711 @@
+---
+title: Artifact Management Guide
+description: Complete guide for managing artifacts in Harness Artifact Registry
+---
+
+Manage your artifacts in Harness Artifact Registry using the CLI for pushing, pulling, listing, and organizing packages.
+
+## Overview
+
+The Harness CLI provides comprehensive artifact management capabilities:
+
+- **Push artifacts** from your local machine
+- **Pull artifacts** to your development environment
+- **List and search** artifacts across registries
+- **Manage metadata** for organization and tracking
+- **Copy artifacts** between registries
+- **Delete artifacts** when no longer needed
+
+## Supported Package Types
+
+<CardGroup cols={3}>
+  <Card title="Generic" icon="box" />
+  <Card title="Maven" icon="java" />
+  <Card title="NPM" icon="npm" />
+  <Card title="Go" icon="golang" />
+  <Card title="Python" icon="python" />
+  <Card title="NuGet" icon="windows" />
+  <Card title="Conda" icon="snake" />
+  <Card title="Composer" icon="php" />
+  <Card title="Cargo" icon="rust" />
+  <Card title="Dart" icon="dart" />
+  <Card title="RPM" icon="linux" />
+</CardGroup>
+
+## Quick Start
+
+<Steps>
+  <Step title="Set Package URL">
+    Configure your package registry endpoint:
+
+    ```bash
+    export PKG_URL="https://pkg.harness.io"
+    ```
+  </Step>
+
+  <Step title="Push Your First Artifact">
+    Upload a generic file:
+
+    ```bash
+    hc artifact push generic my-registry ./myfile.zip \
+      --name my-package \
+      --version 1.0.0 \
+      --pkg-url $PKG_URL
+    ```
+  </Step>
+
+  <Step title="List Artifacts">
+    View uploaded artifacts:
+
+    ```bash
+    hc artifact list --registry my-registry
+    ```
+  </Step>
+
+  <Step title="Add Metadata">
+    Tag your artifact:
+
+    ```bash
+    hc artifact metadata set \
+      --registry my-registry \
+      --package my-package \
+      --version 1.0.0 \
+      --metadata "env:production,owner:team-a"
+    ```
+  </Step>
+</Steps>
+
+## Pushing Artifacts
+
+### Generic Artifacts
+
+Upload any file type to the registry:
+
+```bash
+hc artifact push generic <registry> <file_path> \
+  --name <package_name> \
+  --version <version> \
+  --pkg-url <pkg_url>
+```
+
+<ParamField path="registry" type="string" required>
+  Target registry identifier
+</ParamField>
+
+<ParamField path="file_path" type="string" required>
+  Path to file to upload (supports glob patterns like `*.zip`)
+</ParamField>
+
+<ParamField path="--name, -n" type="string" required>
+  Package name
+</ParamField>
+
+<ParamField path="--version" type="string" default="1.0.0">
+  Version for the artifact
+</ParamField>
+
+<ParamField path="--filename" type="string">
+  Custom filename (defaults to actual filename)
+</ParamField>
+
+<ParamField path="--path" type="string">
+  File path within the package (defaults to filename)
+</ParamField>
+
+<ParamField path="--pkg-url" type="string" required>
+  Base URL for the Packages service
+</ParamField>
+
+**Example:**
+
+```bash
+hc artifact push generic my-registry ./dist/app-1.0.0.zip \
+  --name my-app \
+  --version 1.0.0 \
+  --filename application.zip \
+  --pkg-url https://pkg.harness.io
+```
+
+### Maven Artifacts
+
+Upload Maven JAR or WAR files with POM:
+
+```bash
+hc artifact push maven <registry> <file_path> \
+  --pom-file <pom_path> \
+  --pkg-url <pkg_url>
+```
+
+<Note>
+  Maven push requires both the artifact file (.jar/.war) and POM file (.xml/.pom). The CLI validates that both files reference the same Maven coordinates.
+</Note>
+
+**Validation steps:**
+
+1. Validates file extensions (.jar, .war, .pom, .xml)
+2. Extracts Maven coordinates from POM file
+3. Extracts Maven coordinates from JAR/WAR artifact
+4. Compares groupId, artifactId, and version
+5. Generates MD5 and SHA1 checksums
+6. Uploads artifact, POM, and checksums
+7. Updates `maven-metadata.xml`
+
+**Example:**
+
+```bash
+hc artifact push maven my-registry ./target/myapp-1.0.0.jar \
+  --pom-file ./pom.xml \
+  --pkg-url https://pkg.harness.io
+```
+
+<Accordion title="Maven Upload Process">
+  The Maven push workflow:
+
+  1. **Validate inputs**: Check file extensions and existence
+  2. **Parse POM file**: Extract `groupId`, `artifactId`, `version`
+  3. **Parse artifact**: Read metadata from JAR/WAR
+  4. **Compare coordinates**: Ensure POM and artifact match
+  5. **Check SNAPSHOT**: Reject SNAPSHOT versions (not yet supported)
+  6. **Generate checksums**: Create MD5 and SHA1 for artifact and POM
+  7. **Upload artifact**: Push JAR/WAR file
+  8. **Upload POM**: Push POM file
+  9. **Upload checksums**: Push all checksum files
+  10. **Update metadata**: Download, update, and re-upload `maven-metadata.xml`
+</Accordion>
+
+<Warning>
+  SNAPSHOT versions are not currently supported via CLI. Use release versions only.
+</Warning>
+
+### NPM Packages
+
+Upload NPM packages from `.tgz` tarballs:
+
+```bash
+hc artifact push npm <registry> <tgz_path> \
+  --pkg-url <pkg_url>
+```
+
+The CLI:
+- Extracts `package.json` from the tarball
+- Builds the NPM upload payload
+- Validates name and version
+- Uploads using NPM API format
+
+**Example:**
+
+```bash
+# Create package tarball
+npm pack
+
+# Upload to registry
+hc artifact push npm my-registry ./my-package-1.0.0.tgz \
+  --pkg-url https://pkg.harness.io
+```
+
+<Accordion title="NPM Upload Process">
+  The NPM push workflow:
+
+  1. **Validate input**: Check .tgz file exists
+  2. **Extract package.json**: Read from tarball
+  3. **Parse metadata**: Get name, version, dependencies
+  4. **Build payload**: Create NPM-compatible upload JSON
+  5. **Stream upload**: Upload with progress tracking
+  6. **Verify**: Check successful upload
+</Accordion>
+
+### Python Packages
+
+```bash
+hc artifact push python <registry> <wheel_or_sdist> \
+  --pkg-url <pkg_url>
+```
+
+### Go Modules
+
+```bash
+hc artifact push go <registry> <module_zip> \
+  --pkg-url <pkg_url>
+```
+
+### Other Package Types
+
+<CodeGroup>
+```bash NuGet
+hc artifact push nuget my-registry ./MyPackage.1.0.0.nupkg \
+  --pkg-url https://pkg.harness.io
+```
+
+```bash Conda
+hc artifact push conda my-registry ./package-1.0.0.tar.bz2 \
+  --pkg-url https://pkg.harness.io
+```
+
+```bash Composer
+hc artifact push composer my-registry ./vendor-package.zip \
+  --pkg-url https://pkg.harness.io
+```
+
+```bash Cargo
+hc artifact push cargo my-registry ./my-crate-0.1.0.crate \
+  --pkg-url https://pkg.harness.io
+```
+
+```bash Dart
+hc artifact push dart my-registry ./package-1.0.0.tar.gz \
+  --pkg-url https://pkg.harness.io
+```
+
+```bash RPM
+hc artifact push rpm my-registry ./package-1.0.0.rpm \
+  --pkg-url https://pkg.harness.io
+```
+</CodeGroup>
+
+## Pulling Artifacts
+
+Download artifacts from the registry:
+
+```bash
+hc artifact pull generic <registry> <package> \
+  --version <version> \
+  --output <path> \
+  --pkg-url <pkg_url>
+```
+
+**Example:**
+
+```bash
+hc artifact pull generic my-registry my-app \
+  --version 1.0.0 \
+  --output ./downloads/ \
+  --pkg-url https://pkg.harness.io
+```
+
+## Listing Artifacts
+
+List all artifacts across registries or filter by registry:
+
+```bash
+hc artifact list [options]
+```
+
+<ParamField path="--registry" type="string">
+  Filter by registry identifier
+</ParamField>
+
+<ParamField path="--page-size" type="integer" default="10">
+  Number of items per page
+</ParamField>
+
+<ParamField path="--page" type="integer" default="0">
+  Page number (zero-indexed)
+</ParamField>
+
+**Examples:**
+
+<CodeGroup>
+```bash All Artifacts
+hc artifact list
+```
+
+```bash By Registry
+hc artifact list --registry my-registry
+```
+
+```bash Paginated
+hc artifact list --page-size 50 --page 2
+```
+</CodeGroup>
+
+**Output:**
+
+```
+Artifact         Version    Package Type    Registry       Download Count
+my-app          1.0.0      GENERIC         my-registry    42
+nginx           1.21.0     DOCKER          docker-prod    156
+spring-boot     2.5.0      MAVEN           maven-releases 89
+react-app       17.0.2     NPM             npm-registry   234
+```
+
+## Managing Metadata
+
+Attach key-value metadata to packages and versions for organization, searching, and tracking.
+
+### Set Metadata
+
+Add or update metadata:
+
+```bash
+hc artifact metadata set \
+  --registry <registry> \
+  --package <package> \
+  [--version <version>] \
+  --metadata <key:value,key:value>
+```
+
+<Note>
+  - Without `--version`: Sets package-level metadata
+  - With `--version`: Sets version-specific metadata
+</Note>
+
+**Examples:**
+
+<CodeGroup>
+```bash Package-Level
+hc artifact metadata set \
+  --registry my-registry \
+  --package my-app \
+  --metadata "owner:team-platform,project:backend"
+```
+
+```bash Version-Level
+hc artifact metadata set \
+  --registry my-registry \
+  --package my-app \
+  --version 1.0.0 \
+  --metadata "approved:true,tested:2024-01-15,stage:production"
+```
+</CodeGroup>
+
+### Get Metadata
+
+Retrieve metadata from packages or versions:
+
+```bash
+hc artifact metadata get \
+  --registry <registry> \
+  --package <package> \
+  [--version <version>]
+```
+
+**Examples:**
+
+<CodeGroup>
+```bash Package Metadata
+hc artifact metadata get \
+  --registry my-registry \
+  --package my-app
+```
+
+```bash Version Metadata
+hc artifact metadata get \
+  --registry my-registry \
+  --package my-app \
+  --version 1.0.0
+```
+</CodeGroup>
+
+**Output:**
+
+```
+Key         Value
+owner       team-platform
+project     backend
+approved    true
+tested      2024-01-15
+stage       production
+```
+
+### Delete Metadata
+
+Remove specific metadata keys:
+
+```bash
+hc artifact metadata delete \
+  --registry <registry> \
+  --package <package> \
+  [--version <version>] \
+  --key <key>
+```
+
+**Example:**
+
+```bash
+hc artifact metadata delete \
+  --registry my-registry \
+  --package my-app \
+  --version 1.0.0 \
+  --key approved
+```
+
+## Working with Artifacts
+
+### Get Artifact Details
+
+Retrieve detailed information about an artifact:
+
+```bash
+hc artifact get <artifact_id>
+```
+
+### Copy Artifacts
+
+Copy artifacts between registries:
+
+```bash
+hc artifact copy \
+  --source-registry <source> \
+  --source-package <package> \
+  --source-version <version> \
+  --dest-registry <destination>
+```
+
+**Example:**
+
+```bash
+hc artifact copy \
+  --source-registry dev-registry \
+  --source-package my-app \
+  --source-version 1.0.0 \
+  --dest-registry prod-registry
+```
+
+### Delete Artifacts
+
+Remove artifacts from registry:
+
+```bash
+hc artifact delete <artifact_id>
+```
+
+<Warning>
+  Deletion is permanent. Ensure you have backups or can rebuild artifacts before deleting.
+</Warning>
+
+## Common Workflows
+
+### CI/CD Pipeline Integration
+
+<Accordion title="Build and Push in CI">
+  Integrate artifact push into your CI pipeline:
+
+  ```yaml .github/workflows/build.yml
+  name: Build and Push
+  on: [push]
+  jobs:
+    build:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v2
+        
+        - name: Build artifact
+          run: |
+            ./gradlew build
+        
+        - name: Install Harness CLI
+          run: |
+            curl -sSfL https://get.harness.io/cli | sh
+        
+        - name: Push to Harness
+          env:
+            PKG_URL: https://pkg.harness.io
+            HARNESS_API_KEY: ${{ secrets.HARNESS_API_KEY }}
+          run: |
+            hc artifact push generic production-registry \
+              ./build/libs/app.jar \
+              --name my-app \
+              --version ${{ github.sha }} \
+              --pkg-url $PKG_URL
+  ```
+</Accordion>
+
+<Accordion title="Tag Production Releases">
+  Mark production-ready versions with metadata:
+
+  ```bash
+  # After testing passes
+  hc artifact metadata set \
+    --registry my-registry \
+    --package my-app \
+    --version 1.2.0 \
+    --metadata "stage:production,tested:true,promoted:$(date +%Y-%m-%d)"
+  ```
+</Accordion>
+
+<Accordion title="Promote Artifacts Between Environments">
+  Copy artifacts from dev to staging to production:
+
+  ```bash
+  # Dev to Staging
+  hc artifact copy \
+    --source-registry dev-registry \
+    --source-package my-app \
+    --source-version 1.2.0 \
+    --dest-registry staging-registry
+  
+  # Add staging metadata
+  hc artifact metadata set \
+    --registry staging-registry \
+    --package my-app \
+    --version 1.2.0 \
+    --metadata "env:staging,promoted-from:dev"
+  
+  # After validation, to production
+  hc artifact copy \
+    --source-registry staging-registry \
+    --source-package my-app \
+    --source-version 1.2.0 \
+    --dest-registry prod-registry
+  ```
+</Accordion>
+
+### Maven Project Workflow
+
+<Steps>
+  <Step title="Build Maven Project">
+    ```bash
+    mvn clean package
+    ```
+  </Step>
+
+  <Step title="Verify Artifacts">
+    ```bash
+    ls -lh target/
+    # myapp-1.0.0.jar
+    # myapp-1.0.0.war
+    ```
+  </Step>
+
+  <Step title="Upload to Registry">
+    ```bash
+    hc artifact push maven my-registry \
+      ./target/myapp-1.0.0.jar \
+      --pom-file ./pom.xml \
+      --pkg-url https://pkg.harness.io
+    ```
+  </Step>
+
+  <Step title="Verify Upload">
+    ```bash
+    hc artifact list --registry my-registry
+    ```
+  </Step>
+</Steps>
+
+### NPM Package Workflow
+
+<Steps>
+  <Step title="Build NPM Package">
+    ```bash
+    npm run build
+    npm pack
+    ```
+  </Step>
+
+  <Step title="Upload Package">
+    ```bash
+    hc artifact push npm my-registry \
+      ./my-package-1.0.0.tgz \
+      --pkg-url https://pkg.harness.io
+    ```
+  </Step>
+
+  <Step title="Tag Version">
+    ```bash
+    hc artifact metadata set \
+      --registry my-registry \
+      --package my-package \
+      --version 1.0.0 \
+      --metadata "npm-tag:latest,release-notes:https://..."
+    ```
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Upload Failures" icon="circle-xmark">
+    **Symptom**: Upload fails with network errors
+
+    **Solutions**:
+    - Check `--pkg-url` is correct
+    - Verify network connectivity: `curl -I $PKG_URL`
+    - Ensure authentication is configured
+    - Check firewall allows outbound HTTPS
+    - Try uploading smaller file to test
+  </Accordion>
+
+  <Accordion title="Maven Coordinate Mismatch" icon="exclamation-triangle">
+    **Error**: `groupId mismatch: package="com.example", pom="com.other"`
+
+    **Solutions**:
+    - Ensure POM file matches the artifact
+    - Rebuild with correct coordinates
+    - Verify no manual changes to JAR/WAR
+    - Check parent POM inheritance
+  </Accordion>
+
+  <Accordion title="File Not Found" icon="file-slash">
+    **Error**: `failed to access package file`
+
+    **Solutions**:
+    - Verify file path is correct
+    - Check file permissions
+    - Use absolute paths if relative paths fail
+    - For globs, ensure pattern matches files
+  </Accordion>
+
+  <Accordion title="Authentication Issues" icon="lock">
+    **Error**: `401 Unauthorized`
+
+    **Solutions**:
+    - Verify API key is valid
+    - Check account/org/project IDs
+    - Ensure service account has permissions
+    - Regenerate authentication tokens
+  </Accordion>
+
+  <Accordion title="Metadata Operations Fail" icon="tags">
+    **Error**: `not found: package or version not found`
+
+    **Solutions**:
+    - Verify package and version exist: `hc artifact list`
+    - Check registry identifier is correct
+    - Ensure version string matches exactly
+    - Wait for upload to complete before setting metadata
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Version Consistently" icon="hashtag">
+    - Use semantic versioning (e.g., 1.2.3)
+    - Include build metadata for CI builds
+    - Never reuse version numbers
+    - Document versioning scheme in README
+  </Card>
+
+  <Card title="Use Metadata Liberally" icon="tags">
+    - Tag artifacts with environment (dev/staging/prod)
+    - Record build/test information
+    - Link to release notes or tickets
+    - Track ownership and approvals
+  </Card>
+
+  <Card title="Organize Registries" icon="folder-tree">
+    - Separate registries by environment
+    - Use consistent naming conventions
+    - Create registries per team or project
+    - Document registry purposes
+  </Card>
+
+  <Card title="Automate in CI/CD" icon="robot">
+    - Push artifacts in every build
+    - Tag with git commit SHA
+    - Set metadata with build info
+    - Fail builds on upload errors
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Registry Migration" icon="arrows-turn-to-dots" href="/guides/registry-migration">
+    Migrate artifacts from JFrog or Nexus
+  </Card>
+  <Card title="Artifact Commands" icon="terminal" href="/reference/artifact">
+    Complete artifact command reference
+  </Card>
+</CardGroup>

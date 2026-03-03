@@ -1,0 +1,191 @@
+---
+title: Go modules
+description: Publish and consume Go modules with Harness Artifact Registry
+---
+
+Harness Artifact Registry provides native support for Go modules, allowing you to host private Go packages and dependencies.
+
+## Overview
+
+Go registry features:
+- Standard Go module proxy protocol
+- Automatic `.mod`, `.info`, and `.zip` file generation
+- Version management following Go module versioning
+- Private module authentication
+
+## Pushing Go modules
+
+Use the `hc artifact push go` command to publish Go modules:
+
+```bash
+hc artifact push go <registry-name> <folder-path> \
+  --version <version> \
+  --pkg-url <pkg-url>
+```
+
+### Required flags
+
+<ParamField path="--version" type="string" required>
+  Version for the Go module (must follow semantic versioning, e.g., v1.0.0)
+</ParamField>
+
+### Optional flags
+
+<ParamField path="--pkg-url" type="string">
+  Base URL for the package service. If not provided, derives from `--api-url`
+</ParamField>
+
+## How it works
+
+The CLI automatically:
+1. Validates the folder contains valid Go source code
+2. Generates the `.mod` file from `go.mod`
+3. Creates the `.info` file with version metadata
+4. Packages source code into a `.zip` file
+5. Uploads all three files as a multipart form request
+
+<Steps>
+  <Step title="Prepare your module">
+    Ensure your Go module has a valid `go.mod` file:
+    
+    ```go
+    module github.com/myorg/mymodule
+    
+    go 1.21
+    
+    require (
+        github.com/pkg/errors v0.9.1
+    )
+    ```
+  </Step>
+  
+  <Step title="Push to registry">
+    Upload your module:
+    
+    ```bash
+    hc artifact push go my-go-registry ./mymodule \
+      --version v1.0.0 \
+      --pkg-url https://app.harness.io/registry/pkg
+    ```
+  </Step>
+  
+  <Step title="Configure Go to use your registry">
+    Set up Go to fetch from your private registry:
+    
+    ```bash
+    export GOPRIVATE=<registry-url>/*
+    export GOPROXY=https://<registry-url>,https://proxy.golang.org,direct
+    ```
+  </Step>
+</Steps>
+
+## Consuming Go modules
+
+After configuring your Go environment, import modules as usual:
+
+```go
+import "<registry-url>/myorg/mymodule"
+```
+
+Go will automatically fetch from your Harness registry.
+
+## Authentication
+
+Configure Git credentials for private module access:
+
+```bash
+# Using .netrc for authentication
+cat >> ~/.netrc <<EOF
+machine <registry-url>
+login <username>
+password <harness-api-token>
+EOF
+
+chmod 600 ~/.netrc
+```
+
+Or use Git credential helper:
+
+```bash
+git config --global credential.helper store
+echo "https://<username>:<token>@<registry-url>" >> ~/.git-credentials
+```
+
+## Examples
+
+<CodeGroup>
+
+```bash Basic push
+hc artifact push go my-go-registry ./my-library \
+  --version v1.0.0 \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash With API URL
+hc artifact push go my-go-registry ./my-library \
+  --version v2.1.0 \
+  --api-url https://app.harness.io
+```
+
+```bash Pre-release version
+hc artifact push go my-go-registry ./my-library \
+  --version v1.0.0-beta.1 \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+</CodeGroup>
+
+## Version requirements
+
+<Note>
+  Go module versions must follow semantic versioning with a `v` prefix (e.g., `v1.0.0`, `v2.1.3-beta.1`)
+</Note>
+
+Valid version formats:
+- `v1.0.0` - Standard release
+- `v2.1.0-alpha.1` - Pre-release
+- `v1.0.0+build.123` - Build metadata
+
+## Troubleshooting
+
+<Accordion title="Version is required error">
+  The `--version` flag is mandatory for Go module uploads.
+  
+  ```bash
+  # ❌ Wrong
+  hc artifact push go my-registry ./module
+  
+  # ✅ Correct
+  hc artifact push go my-registry ./module --version v1.0.0
+  ```
+</Accordion>
+
+<Accordion title="Invalid Go module structure">
+  Ensure your folder contains a valid `go.mod` file at the root:
+  
+  ```bash
+  mymodule/
+  ├── go.mod      # Required
+  ├── go.sum
+  ├── main.go
+  └── pkg/
+  ```
+</Accordion>
+
+<Accordion title="Authentication failures">
+  Verify your credentials are configured correctly:
+  
+  ```bash
+  # Check authentication
+  hc auth status
+  
+  # Re-login if needed
+  hc auth login --api-key <your-key>
+  ```
+</Accordion>
+
+## See also
+
+- [Artifact push command](/commands/artifact/push)
+- [Artifact management guide](/guides/artifact-management)
+- [Go modules documentation](https://go.dev/ref/mod)

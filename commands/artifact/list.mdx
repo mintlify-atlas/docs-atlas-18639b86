@@ -1,0 +1,82 @@
+---
+title: hc artifact list
+description: List all artifacts in Harness Artifact Registry
+---
+
+## Synopsis
+
+Lists all artifacts in the Harness Artifact Registry. Results can be filtered by registry and paginated for large datasets.
+
+```bash
+hc artifact list [flags]
+```
+
+## Options
+
+<ParamField path="--registry" type="string">
+  Filter artifacts by registry name
+</ParamField>
+
+<ParamField path="--page-size" type="integer" default="10">
+  Number of items per page
+</ParamField>
+
+<ParamField path="--page" type="integer" default="0">
+  Page number (zero-indexed)
+</ParamField>
+
+## Output Format
+
+The command displays artifacts in a table format with the following columns:
+
+- **Artifact** - Name of the artifact
+- **Version** - Latest or current version
+- **Package Type** - Type of package (Docker, NPM, Maven, etc.)
+- **Registry** - Registry identifier
+- **Download Count** - Number of times downloaded
+
+## Examples
+
+<CodeGroup>
+```bash List all artifacts
+hc artifact list
+```
+
+```bash List artifacts in specific registry
+hc artifact list --registry docker-registry
+```
+
+```bash List with pagination
+hc artifact list --registry npm-registry --page-size 50 --page 0
+```
+
+```bash List second page of results
+hc artifact list --page 1 --page-size 25
+```
+</CodeGroup>
+
+## Output Example
+
+```
+Artifact           Version    Package Type  Registry         Download Count
+nginx             1.21.0     DOCKER        docker-registry  125
+react-app         2.0.1      NPM           npm-registry     89
+spring-boot-app   3.1.0      MAVEN         maven-registry   45
+
+Page: 0 | Total Pages: 5 | Total Items: 123
+```
+
+## Filtering Tips
+
+<Note>
+When listing artifacts across multiple registries, omit the `--registry` flag to see all artifacts in your account.
+</Note>
+
+<Tip>
+Use `--page-size` to control the number of results displayed. Larger page sizes reduce the number of API calls but may take longer to load.
+</Tip>
+
+## See Also
+
+- [hc artifact get](/commands/artifact/get) - Get detailed artifact information
+- [hc artifact delete](/commands/artifact/delete) - Delete artifacts

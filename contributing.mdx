@@ -1,0 +1,566 @@
+---
+title: "Contributing"
+description: "How to contribute to Harness CLI"
+---
+
+Thank you for your interest in contributing to Harness CLI! This guide will help you get started with contributing code, documentation, and bug reports.
+
+## Getting Started
+
+### Prerequisites
+
+Before you begin, ensure you have:
+
+- **Go 1.21 or later** - [Download Go](https://golang.org/dl/)
+- **Git** - Version control
+- **Make** - Build automation (usually pre-installed on macOS/Linux)
+- A **GitHub account** - For submitting pull requests
+
+### Setting Up Your Development Environment
+
+<Steps>
+  <Step title="Fork and clone the repository">
+    ```bash
+    # Fork the repository on GitHub, then clone your fork
+    git clone https://github.com/YOUR_USERNAME/harness-cli.git
+    cd harness-cli
+    
+    # Add upstream remote
+    git remote add upstream https://github.com/harness/harness-cli.git
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    ```bash
+    # Download Go module dependencies
+    go mod download
+    go mod verify
+    
+    # Install development tools
+    make tools
+    ```
+  </Step>
+
+  <Step title="Build the project">
+    ```bash
+    # Build the CLI binary
+    make build
+    
+    # The binary will be created as ./hc
+    ./hc --help
+    ```
+  </Step>
+
+  <Step title="Run tests">
+    ```bash
+    # Run the test suite
+    make test
+    
+    # Run linter
+    make lint
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  If you encounter build issues, see the [Troubleshooting guide](/troubleshooting#build-and-installation-issues).
+</Note>
+
+## Project Structure
+
+Understanding the codebase structure will help you navigate and contribute effectively:
+
+```
+harness-cli/
+├── api/                    # OpenAPI specifications
+│   ├── ar/                 # Artifact Registry API spec
+│   ├── ar_v2/              # AR API v2 spec
+│   ├── ar_v3/              # AR API v3 spec
+│   └── ar_pkg/             # AR Package API spec
+│
+├── cmd/                    # Command implementations
+│   ├── hc/                 # Main CLI entry point
+│   ├── auth/               # Authentication commands
+│   ├── registry/           # Registry management
+│   │   ├── root.go         # Registry command root
+│   │   ├── migrate_cmd.go  # Migration command
+│   │   └── command/        # Registry subcommands
+│   ├── artifact/           # Artifact management
+│   │   ├── root.go         # Artifact command root
+│   │   └── command/        # Artifact subcommands
+│   ├── project/            # Project management
+│   └── organisation/       # Organization management
+│
+├── config/                 # Configuration management
+│   └── globals.go          # Global flags and config
+│
+├── internal/               # Internal packages
+│   └── api/                # Generated API clients
+│
+├── module/                 # Service-specific modules
+│   └── ar/                 # Artifact Registry modules
+│       ├── migrate/        # Migration engine
+│       └── packages/       # Package type handlers
+│
+├── tools/                  # Development tools
+│   └── cobra-gen/          # Code generator
+│
+└── util/                   # Utility packages
+    ├── common/             # Common utilities
+    │   ├── auth/           # Auth helpers
+    │   ├── errors/         # Error types
+    │   ├── fileutil/       # File operations
+    │   ├── printer/        # Output formatting
+    │   └── progress/       # Progress bars
+    └── templates/          # Command templates
+```
+
+### Key Components
+
+- **API Specs**: OpenAPI definitions in `api/` directory drive API client generation
+- **Commands**: Each command is implemented in `cmd/` with a root command and subcommands
+- **Modules**: Business logic for specific services (migrations, package handling)
+- **Generated Code**: API clients are auto-generated from OpenAPI specs
+- **Utilities**: Shared functionality like error handling, output formatting, progress bars
+
+## Making Changes
+
+### Development Workflow
+
+<Steps>
+  <Step title="Create a feature branch">
+    ```bash
+    # Update your main branch
+    git checkout main
+    git pull upstream main
+    
+    # Create a feature branch
+    git checkout -b feature/your-feature-name
+    ```
+  </Step>
+
+  <Step title="Make your changes">
+    Edit the necessary files. Follow the coding standards below.
+  </Step>
+
+  <Step title="Test your changes">
+    ```bash
+    # Run tests
+    make test
+    
+    # Run linter
+    make lint
+    
+    # Format code
+    make format
+    
+    # Test the CLI locally
+    make build
+    ./hc <your-command>
+    ```
+  </Step>
+
+  <Step title="Commit your changes">
+    ```bash
+    git add .
+    git commit -m "Brief description of your changes"
+    ```
+    
+    See [Commit Message Guidelines](#commit-message-guidelines) below.
+  </Step>
+
+  <Step title="Push and create a pull request">
+    ```bash
+    git push origin feature/your-feature-name
+    ```
+    
+    Then open a pull request on GitHub.
+  </Step>
+</Steps>
+
+### Coding Standards
+
+- **Go Style**: Follow the [Effective Go](https://golang.org/doc/effective_go) guidelines
+- **Formatting**: Use `gofmt` and `goimports` (run via `make format`)
+- **Linting**: Code must pass `golangci-lint` checks (run via `make lint`)
+- **Error Handling**: Use the error types in `util/common/errors/`
+- **Testing**: Write unit tests for new functionality
+- **Documentation**: Add comments for exported functions and types
+
+### Commit Message Guidelines
+
+Use clear, descriptive commit messages:
+
+```
+<type>: <brief description>
+
+<detailed description if needed>
+
+<footer with issue references>
+```
+
+**Types:**
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation changes
+- `refactor`: Code refactoring
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks
+
+**Example:**
+```
+feat: add support for Dart package push
+
+Implements the ability to push Dart/Pub packages to Harness
+Artifact Registry with proper version handling and metadata.
+
+Closes #123
+```
+
+## Adding New Commands
+
+### Command Structure
+
+Commands follow the Cobra framework pattern. Here's how to add a new command:
+
+<Steps>
+  <Step title="Create command file">
+    Create a new file in the appropriate `cmd/` subdirectory:
+    ```go
+    // cmd/registry/command/my_command.go
+    package command
+    
+    import (
+        "github.com/spf13/cobra"
+        "github.com/harness/harness-cli/cmd/cmdutils"
+    )
+    
+    func NewMyCommand(f *cmdutils.Factory) *cobra.Command {
+        cmd := &cobra.Command{
+            Use:   "mycommand",
+            Short: "Brief description",
+            Long:  `Detailed description`,
+            RunE: func(cmd *cobra.Command, args []string) error {
+                // Implementation
+                return nil
+            },
+        }
+        
+        // Add flags
+        cmd.Flags().StringVar(&myFlag, "my-flag", "", "Flag description")
+        
+        return cmd
+    }
+    ```
+  </Step>
+
+  <Step title="Register command">
+    Add the command to the parent command in `root.go`:
+    ```go
+    // cmd/registry/root.go
+    func NewRegistryCmd(f *cmdutils.Factory) *cobra.Command {
+        cmd := &cobra.Command{
+            Use:   "registry",
+            Short: "Manage registries",
+        }
+        
+        cmd.AddCommand(command.NewMyCommand(f))
+        // ... other commands
+        
+        return cmd
+    }
+    ```
+  </Step>
+
+  <Step title="Add tests">
+    Create a test file:
+    ```go
+    // cmd/registry/command/my_command_test.go
+    package command
+    
+    import (
+        "testing"
+    )
+    
+    func TestMyCommand(t *testing.T) {
+        // Test implementation
+    }
+    ```
+  </Step>
+</Steps>
+
+### Using Generated API Clients
+
+API clients are generated from OpenAPI specs:
+
+```go
+import (
+    ar "github.com/harness/harness-cli/internal/api/ar"
+)
+
+// Create client
+client, err := ar.NewClientWithResponses(
+    config.Global.APIBaseURL,
+    ar.WithRequestEditorFn(func(ctx context.Context, req *http.Request) error {
+        req.Header.Set("x-api-key", config.Global.AuthToken)
+        return nil
+    }),
+)
+
+// Use client
+resp, err := client.ListRegistriesWithResponse(ctx, &ar.ListRegistriesParams{
+    AccountIdentifier: accountID,
+    OrgIdentifier:     &orgID,
+    ProjectIdentifier: &projectID,
+})
+```
+
+## Build System
+
+The project uses a Makefile for common tasks:
+
+### Available Make Targets
+
+| Target | Description |
+|--------|-------------|
+| `make build` | Build the CLI binary (output: `./hc`) |
+| `make build-all` | Generate code, format, and build |
+| `make generate` | Generate API clients from OpenAPI specs |
+| `make test` | Run all tests |
+| `make lint` | Run linter checks |
+| `make format` | Format code with goimports and gci |
+| `make clean` | Remove generated files and artifacts |
+| `make tools` | Install required development tools |
+
+### Code Generation
+
+The CLI uses code generation for API clients:
+
+```bash
+# Generate clients from OpenAPI specs
+make generate
+
+# This runs the cobra-gen tool which:
+# 1. Reads OpenAPI specs from api/*/openapi.yaml
+# 2. Generates API clients in internal/api/
+# 3. Generates command stubs in cmd/*/
+```
+
+<Warning>
+  Do not manually edit generated files (those ending in `_gen.go`). Changes will be overwritten on the next generation.
+</Warning>
+
+## Testing
+
+### Writing Tests
+
+- Place tests in `*_test.go` files next to the code they test
+- Use table-driven tests for multiple test cases
+- Mock external dependencies (API calls, file system)
+
+**Example:**
+```go
+func TestListRegistries(t *testing.T) {
+    tests := []struct {
+        name    string
+        input   string
+        want    string
+        wantErr bool
+    }{
+        {
+            name:    "valid input",
+            input:   "test",
+            want:    "expected",
+            wantErr: false,
+        },
+    }
+    
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got, err := ListRegistries(tt.input)
+            if (err != nil) != tt.wantErr {
+                t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
+            }
+            if got != tt.want {
+                t.Errorf("got %v, want %v", got, tt.want)
+            }
+        })
+    }
+}
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+make test
+
+# Run specific package tests
+go test ./cmd/registry/...
+
+# Run with coverage
+go test -cover ./...
+
+# Run with verbose output
+go test -v ./...
+```
+
+## Documentation
+
+### Code Documentation
+
+- Add godoc comments for all exported functions, types, and packages
+- Use complete sentences starting with the item name
+
+```go
+// ListRegistries retrieves all registries in the specified scope.
+// It returns a slice of Registry objects or an error if the operation fails.
+func ListRegistries(ctx context.Context, opts *ListOptions) ([]Registry, error) {
+    // Implementation
+}
+```
+
+### User Documentation
+
+When adding new features:
+
+1. Update command help text (`Short` and `Long` descriptions)
+2. Add examples to command documentation
+3. Update relevant guides in the docs site
+4. Add FAQ entries if the feature addresses common questions
+
+## Pull Request Process
+
+<Steps>
+  <Step title="Ensure your PR is ready">
+    Before submitting:
+    - [ ] All tests pass (`make test`)
+    - [ ] Linter passes (`make lint`)
+    - [ ] Code is formatted (`make format`)
+    - [ ] Commits follow message guidelines
+    - [ ] Documentation is updated
+  </Step>
+
+  <Step title="Create the pull request">
+    - Provide a clear title and description
+    - Reference any related issues
+    - Describe what changed and why
+    - Include testing steps if applicable
+  </Step>
+
+  <Step title="Code review">
+    - Address reviewer feedback
+    - Keep the PR up to date with main branch
+    - Be responsive to questions
+  </Step>
+
+  <Step title="Merge">
+    Once approved, a maintainer will merge your PR.
+  </Step>
+</Steps>
+
+### PR Template
+
+```markdown
+## Description
+Brief description of changes
+
+## Related Issues
+Closes #123
+
+## Changes Made
+- Added X feature
+- Fixed Y bug
+- Updated Z documentation
+
+## Testing
+- [ ] Unit tests added/updated
+- [ ] Manual testing performed
+- [ ] All tests pass
+
+## Checklist
+- [ ] Code follows project style guidelines
+- [ ] Documentation updated
+- [ ] Tests pass
+- [ ] Linter passes
+```
+
+## Reporting Bugs
+
+Found a bug? Help us fix it:
+
+<Steps>
+  <Step title="Check existing issues">
+    Search [GitHub Issues](https://github.com/harness/harness-cli/issues) to see if it's already reported.
+  </Step>
+
+  <Step title="Gather information">
+    Collect:
+    - CLI version
+    - Operating system and architecture
+    - Full command that caused the issue
+    - Complete error message
+    - Logs (use `--log-file` flag)
+  </Step>
+
+  <Step title="Create a detailed issue">
+    Include:
+    - **Clear title**: "artifact push fails with connection timeout"
+    - **Description**: What you were trying to do
+    - **Steps to reproduce**: Exact commands to reproduce
+    - **Expected behavior**: What should happen
+    - **Actual behavior**: What actually happens
+    - **Environment**: OS, version, etc.
+    - **Logs**: Relevant log output (redact sensitive data)
+  </Step>
+</Steps>
+
+<Warning>
+  Always redact sensitive information (tokens, account IDs, private URLs) from logs and error messages before posting.
+</Warning>
+
+## Feature Requests
+
+Have an idea for a new feature?
+
+1. Check if it's already requested in [GitHub Issues](https://github.com/harness/harness-cli/issues)
+2. Create a new issue with the "enhancement" label
+3. Describe:
+   - The problem you're trying to solve
+   - Your proposed solution
+   - Any alternative approaches considered
+   - How it benefits other users
+
+## Community
+
+- **GitHub Discussions**: Ask questions and share ideas
+- **Issues**: Report bugs and request features
+- **Pull Requests**: Contribute code and documentation
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the MIT License.
+
+## Questions?
+
+If you have questions about contributing:
+
+<CardGroup cols={2}>
+  <Card title="FAQ" icon="question" href="/faq">
+    Check frequently asked questions
+  </Card>
+  
+  <Card title="GitHub Issues" icon="github" href="https://github.com/harness/harness-cli/issues">
+    Ask in GitHub discussions
+  </Card>
+  
+  <Card title="Troubleshooting" icon="wrench" href="/troubleshooting">
+    Common development issues
+  </Card>
+  
+  <Card title="Documentation" icon="book" href="/introduction">
+    Browse full documentation
+  </Card>
+</CardGroup>
+
+Thank you for contributing to Harness CLI!

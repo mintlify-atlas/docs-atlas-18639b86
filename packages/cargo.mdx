@@ -1,0 +1,245 @@
+---
+title: Cargo packages
+description: Publish and consume Rust crates with Harness Artifact Registry
+---
+
+Harness Artifact Registry provides support for Rust Cargo crates, allowing you to host private Rust libraries.
+
+## Overview
+
+Cargo registry features:
+- Standard Cargo registry protocol
+- Automatic metadata extraction from `Cargo.toml`
+- `.crate` file format support
+- Version management following SemVer
+- Integration with cargo CLI
+
+## Pushing Cargo crates
+
+Use the `hc artifact push cargo` command:
+
+```bash
+hc artifact push cargo <registry-name> <crate-file-path> \
+  --pkg-url <pkg-url>
+```
+
+### How it works
+
+The CLI automatically:
+1. Validates the `.crate` file format
+2. Extracts metadata from the crate's `Cargo.toml`
+3. Reads the crate name and version
+4. Uploads the crate to the registry
+
+## Building Cargo crates
+
+<Steps>
+  <Step title="Prepare your crate">
+    Ensure your `Cargo.toml` has proper metadata:
+    
+    ```toml Cargo.toml
+    [package]
+    name = "my-crate"
+    version = "0.1.0"
+    edition = "2021"
+    authors = ["Your Name <you@example.com>"]
+    description = "A useful crate"
+    license = "MIT"
+    ```
+  </Step>
+  
+  <Step title="Package the crate">
+    Create the `.crate` file:
+    
+    ```bash
+    cargo package
+    ```
+    
+    This creates `target/package/my-crate-0.1.0.crate`
+  </Step>
+  
+  <Step title="Upload to registry">
+    Push the crate:
+    
+    ```bash
+    hc artifact push cargo my-registry ./target/package/my-crate-0.1.0.crate \
+      --pkg-url https://app.harness.io/registry/pkg
+    ```
+  </Step>
+</Steps>
+
+## Using Cargo crates
+
+Configure Cargo to use your Harness registry:
+
+### In .cargo/config.toml
+
+Create or edit `.cargo/config.toml`:
+
+```toml .cargo/config.toml
+[registries.harness]
+index = "https://<registry-url>/index"
+
+[registry]
+default = "harness"
+```
+
+### Authentication
+
+Configure credentials:
+
+```bash
+# Using cargo credentials
+cargo login --registry harness <your-harness-token>
+```
+
+Or manually in `~/.cargo/credentials.toml`:
+
+```toml
+[registries.harness]
+token = "<your-harness-token>"
+```
+
+### Installing crates
+
+```bash
+# Add dependency to Cargo.toml
+[dependencies]
+my-crate = { version = "0.1.0", registry = "harness" }
+
+# Build your project
+cargo build
+```
+
+## Examples
+
+<CodeGroup>
+
+```bash Basic upload
+# Package and push
+cargo package
+hc artifact push cargo my-registry ./target/package/my-crate-0.1.0.crate \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash With workspace
+# Package from workspace
+cargo package --package my-crate
+hc artifact push cargo my-registry ./target/package/my-crate-0.1.0.crate \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash Pre-release version
+# Update version in Cargo.toml to 0.2.0-beta.1
+cargo package
+hc artifact push cargo my-registry ./target/package/my-crate-0.2.0-beta.1.crate \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+</CodeGroup>
+
+## Cargo.toml requirements
+
+<Warning>
+  The `Cargo.toml` must contain `name` and `version` in the `[package]` section
+</Warning>
+
+Minimal configuration:
+
+```toml
+[package]
+name = "my-crate"
+version = "0.1.0"
+edition = "2021"
+```
+
+Recommended fields:
+
+```toml
+[package]
+name = "my-crate"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <you@example.com>"]
+description = "A useful Rust library"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/yourusername/my-crate"
+keywords = ["rust", "library"]
+categories = ["development-tools"]
+```
+
+## CI/CD integration
+
+<Tabs>
+  <Tab title="GitHub Actions">
+    ```yaml
+    - name: Build and publish
+      run: |
+        cargo package
+        hc artifact push cargo my-registry ./target/package/*.crate \
+          --pkg-url https://app.harness.io/registry/pkg
+      env:
+        HARNESS_API_KEY: ${{ secrets.HARNESS_API_KEY }}
+    ```
+  </Tab>
+  
+  <Tab title="GitLab CI">
+    ```yaml
+    publish:
+      script:
+        - cargo package
+        - hc artifact push cargo my-registry ./target/package/*.crate --pkg-url $PKG_URL
+      variables:
+        HARNESS_API_KEY: $HARNESS_TOKEN
+    ```
+  </Tab>
+</Tabs>
+
+## Version requirements
+
+Cargo uses Semantic Versioning (SemVer):
+
+- Major.Minor.Patch: `1.0.0`
+- Pre-release: `1.0.0-alpha`, `1.0.0-beta.1`
+- Build metadata: `1.0.0+build.123`
+
+## Troubleshooting
+
+<Accordion title="Failed to extract metadata">
+  Ensure your `.crate` file is valid:
+  
+  ```bash
+  # Verify package
+  cargo package --list
+  
+  # Check Cargo.toml
+  cargo metadata --no-deps
+  ```
+</Accordion>
+
+<Accordion title="Crate name/version mismatch">
+  The `.crate` filename must match the name and version in `Cargo.toml`:
+  
+  ```bash
+  # ✅ Correct
+  my-crate-0.1.0.crate  # matches Cargo.toml name="my-crate" version="0.1.0"
+  ```
+</Accordion>
+
+<Accordion title="Authentication failed">
+  Check your Cargo credentials:
+  
+  ```bash
+  # Re-login
+  cargo login --registry harness <your-token>
+  
+  # Or check ~/.cargo/credentials.toml
+  cat ~/.cargo/credentials.toml
+  ```
+</Accordion>
+
+## See also
+
+- [Artifact push command](/commands/artifact/push)
+- [Artifact management guide](/guides/artifact-management)
+- [Cargo book](https://doc.rust-lang.org/cargo/)

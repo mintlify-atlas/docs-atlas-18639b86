@@ -1,0 +1,167 @@
+---
+title: hc registry list
+description: List all Harness Artifact Registries
+---
+
+List all registries in your account, organization, or project. Supports filtering by package type and pagination.
+
+## Usage
+
+```bash
+hc registry list [flags]
+```
+
+## Options
+
+<ParamField path="--package-type" type="string">
+  Filter registries by package type (DOCKER, NPM, MAVEN, etc.)
+</ParamField>
+
+<ParamField path="--page-size" type="int" default="10">
+  Number of items per page
+</ParamField>
+
+<ParamField path="--page" type="int" default="0">
+  Page number (zero-indexed)
+</ParamField>
+
+## Examples
+
+### List All Registries
+
+Display all registries with default pagination:
+
+```bash
+hc registry list
+```
+
+<Info>
+The default page size is 10 items. Use `--page-size` to adjust.
+</Info>
+
+### Filter by Package Type
+
+List only Docker registries:
+
+```bash
+hc registry list --package-type DOCKER
+```
+
+List NPM registries:
+
+```bash
+hc registry list --package-type NPM
+```
+
+List Maven registries:
+
+```bash
+hc registry list --package-type MAVEN
+```
+
+### Custom Pagination
+
+Get 25 registries per page:
+
+```bash
+hc registry list --page-size 25
+```
+
+Get the second page of results:
+
+```bash
+hc registry list --page-size 20 --page 1
+```
+
+Get the third page:
+
+```bash
+hc registry list --page-size 20 --page 2
+```
+
+### Output in JSON Format
+
+```bash
+hc registry list --format json
+```
+
+## Output
+
+The command displays a table with the following columns:
+
+| Column | Description |
+|--------|-------------|
+| Registry | Registry identifier |
+| Package Type | Type of packages (DOCKER, NPM, MAVEN, etc.) |
+| Size | Total size of the registry |
+| Registry Type | Registry type (e.g., VIRTUAL, LOCAL) |
+| Description | Registry description |
+| Link | URL to the registry |
+
+### Example Output
+
+```bash
+$ hc registry list
+
+Registry            Package Type  Size        Registry Type  Description
+my-docker-reg       DOCKER        1.2 GB      VIRTUAL        Production Docker registry
+npm-packages        NPM           450 MB      VIRTUAL        NPM packages for frontend
+maven-releases      MAVEN         2.1 GB      VIRTUAL        Maven release artifacts
+pypi-local          PYTHON        890 MB      LOCAL          Python packages
+
+Page 1 of 3 (Total: 28 registries)
+```
+
+## Pagination Details
+
+The output includes pagination information:
+- Current page number
+- Total number of pages
+- Total item count
+
+To navigate through pages:
+
+```bash
+# First page (page 0)
+hc registry list --page 0
+
+# Second page (page 1)
+hc registry list --page 1
+
+# Third page (page 2)
+hc registry list --page 2
+```
+
+<Note>
+Page numbers are zero-indexed, so the first page is `--page 0`.
+</Note>
+
+## Supported Package Types
+
+You can filter by any of these package types:
+
+- `DOCKER` - Docker container images
+- `HELM` - Helm charts
+- `MAVEN` - Java/Maven artifacts
+- `NPM` - Node.js packages
+- `NUGET` - .NET packages
+- `PYTHON` - Python packages
+- `GO` - Go modules
+- `GENERIC` - Generic file storage
+- `CONDA` - Conda packages
+- `COMPOSER` - PHP packages
+- `DART` - Dart/Flutter packages
+
+## Context
+
+The command uses your current authentication context (account, organization, project). To list registries from a different context:
+
+```bash
+hc registry list --account my-account --org my-org --project my-project
+```
+
+## Related Commands
+
+- [hc registry get](/commands/registry/get) - Get detailed information about a specific registry
+- [hc registry create](/commands/registry/create) - Create a new registry
+- [hc registry delete](/commands/registry/delete) - Delete a registry

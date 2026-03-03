@@ -1,0 +1,401 @@
+---
+title: hc artifact metadata
+description: Manage metadata on packages and versions
+---
+
+## Synopsis
+
+Manage key-value metadata pairs on packages and specific versions in Harness Artifact Registry. Metadata can be used for categorization, approval tracking, ownership, and custom tagging.
+
+```bash
+hc artifact metadata <subcommand> [flags]
+```
+
+## Subcommands
+
+<CardGroup cols={3}>
+  <Card title="get" icon="eye" href="#get-metadata">
+    Retrieve metadata
+  </Card>
+  <Card title="set" icon="pen" href="#set-metadata">
+    Add or update metadata
+  </Card>
+  <Card title="delete" icon="trash" href="#delete-metadata">
+    Remove metadata
+  </Card>
+</CardGroup>
+
+## Metadata Levels
+
+Metadata can be applied at two levels:
+
+1. **Package Level** - Metadata applies to the entire package across all versions
+2. **Version Level** - Metadata applies to a specific version only
+
+<Note>
+Use `--version` flag to specify version-level metadata. Omit it for package-level metadata.
+</Note>
+
+---
+
+## Get Metadata
+
+Retrieve metadata key-value pairs from a package or specific version.
+
+### Usage
+
+```bash
+hc artifact metadata get --registry <registry> --package <package> [--version <version>]
+```
+
+### Options
+
+<ParamField path="--registry" type="string" required>
+  Registry identifier
+</ParamField>
+
+<ParamField path="--package" type="string" required>
+  Package name
+</ParamField>
+
+<ParamField path="--version" type="string">
+  Specific version (optional, for version-level metadata)
+</ParamField>
+
+### Examples
+
+<CodeGroup>
+```bash Get package-level metadata
+hc artifact metadata get --registry docker-registry --package nginx
+```
+
+```bash Get version-level metadata
+hc artifact metadata get --registry npm-registry --package @myorg/my-package --version 1.2.3
+```
+
+```bash Get metadata from Maven artifact
+hc artifact metadata get --registry maven-registry --package com.example.myapp --version 2.0.0
+```
+</CodeGroup>
+
+### Output
+
+Displays metadata in table format:
+
+```
+Fetching metadata... ✓
+Metadata fetched
+
+Key            Value
+owner          team-a
+approved       true
+environment    production
+scanned        2024-03-15
+```
+
+If no metadata exists:
+```
+No metadata found
+```
+
+---
+
+## Set Metadata
+
+Set or update metadata key-value pairs on a package or specific version.
+
+### Usage
+
+```bash
+hc artifact metadata set --registry <registry> --package <package> --metadata <key:value,...> [--version <version>]
+```
+
+### Options
+
+<ParamField path="--registry" type="string" required>
+  Registry identifier
+</ParamField>
+
+<ParamField path="--package" type="string" required>
+  Package name
+</ParamField>
+
+<ParamField path="--metadata" type="string" required>
+  Metadata in `key:value,key:value` format
+</ParamField>
+
+<ParamField path="--version" type="string">
+  Specific version (optional, for version-level metadata)
+</ParamField>
+
+### Metadata Format
+
+Metadata must be provided in comma-separated `key:value` pairs:
+
+```
+key1:value1,key2:value2,key3:value3
+```
+
+### Examples
+
+<CodeGroup>
+```bash Set package-level metadata
+hc artifact metadata set \
+  --registry docker-registry \
+  --package nginx \
+  --metadata "owner:team-a,environment:production"
+```
+
+```bash Set version-level metadata
+hc artifact metadata set \
+  --registry npm-registry \
+  --package @myorg/my-package \
+  --version 1.2.3 \
+  --metadata "approved:true,scanned:2024-03-15"
+```
+
+```bash Single metadata key
+hc artifact metadata set \
+  --registry maven-registry \
+  --package com.example.myapp \
+  --version 2.0.0 \
+  --metadata "release-notes:https://example.com/notes"
+```
+
+```bash Track deployment
+hc artifact metadata set \
+  --registry docker-registry \
+  --package myapp \
+  --version 3.1.0 \
+  --metadata "deployed:prod,deployed-by:john.doe,deployed-at:2024-03-15T10:30:00Z"
+```
+</CodeGroup>
+
+### Output
+
+```
+Parsing metadata... ✓
+Metadata parsed
+Updating metadata... ✓
+Metadata updated successfully
+```
+
+---
+
+## Delete Metadata
+
+Delete specific metadata key-value pairs from a package or version.
+
+### Usage
+
+```bash
+hc artifact metadata delete --registry <registry> --package <package> --metadata <key:value,...> [--version <version>]
+```
+
+### Options
+
+<ParamField path="--registry" type="string" required>
+  Registry identifier
+</ParamField>
+
+<ParamField path="--package" type="string" required>
+  Package name
+</ParamField>
+
+<ParamField path="--metadata" type="string" required>
+  Metadata to delete in `key:value,key:value` format
+</ParamField>
+
+<ParamField path="--version" type="string">
+  Specific version (optional, for version-level metadata)
+</ParamField>
+
+<Note>
+**Value matching required** - You must provide both key and value to delete metadata. This prevents accidental deletion.
+</Note>
+
+### Examples
+
+<CodeGroup>
+```bash Delete package-level metadata
+hc artifact metadata delete \
+  --registry docker-registry \
+  --package nginx \
+  --metadata "old-key:old-value"
+```
+
+```bash Delete version-level metadata
+hc artifact metadata delete \
+  --registry npm-registry \
+  --package @myorg/my-package \
+  --version 1.2.3 \
+  --metadata "approved:false"
+```
+
+```bash Delete multiple keys
+hc artifact metadata delete \
+  --registry maven-registry \
+  --package com.example.myapp \
+  --version 2.0.0 \
+  --metadata "temp-key:temp-value,test:true"
+```
+</CodeGroup>
+
+### Output
+
+```
+Parsing metadata... ✓
+Metadata parsed
+Deleting metadata... ✓
+Metadata deleted successfully
+```
+
+---
+
+## Common Use Cases
+
+<AccordionGroup>
+  <Accordion title="Track approval status">
+    ```bash
+    # Mark version as approved
+    hc artifact metadata set \
+      --registry docker-registry \
+      --package myapp \
+      --version 1.0.0 \
+      --metadata "approved:true,approved-by:security-team,approved-date:2024-03-15"
+    ```
+    Track which versions have been approved for production deployment.
+  </Accordion>
+
+  <Accordion title="Assign ownership">
+    ```bash
+    # Set package owner
+    hc artifact metadata set \
+      --registry npm-registry \
+      --package @myorg/shared-lib \
+      --metadata "owner:platform-team,contact:platform@example.com"
+    ```
+    Identify which team owns and maintains a package.
+  </Accordion>
+
+  <Accordion title="Tag environments">
+    ```bash
+    # Tag package for environment
+    hc artifact metadata set \
+      --registry docker-registry \
+      --package myapp \
+      --metadata "environment:production,region:us-east-1"
+    ```
+    Organize artifacts by deployment environment and region.
+  </Accordion>
+
+  <Accordion title="Security scanning results">
+    ```bash
+    # Record security scan
+    hc artifact metadata set \
+      --registry docker-registry \
+      --package myapp \
+      --version 2.1.0 \
+      --metadata "scanned:true,scan-date:2024-03-15,vulnerabilities:0,scanner:trivy"
+    ```
+    Store security scanning results and dates.
+  </Accordion>
+
+  <Accordion title="Deprecation notices">
+    ```bash
+    # Mark as deprecated
+    hc artifact metadata set \
+      --registry npm-registry \
+      --package old-package \
+      --metadata "deprecated:true,reason:security-vulnerability,replacement:new-package"
+    ```
+    Flag deprecated packages with replacement information.
+  </Accordion>
+
+  <Accordion title="Build information">
+    ```bash
+    # Store build metadata
+    hc artifact metadata set \
+      --registry docker-registry \
+      --package myapp \
+      --version 3.2.0 \
+      --metadata "build-id:12345,git-commit:abc123def,build-date:2024-03-15,builder:jenkins"
+    ```
+    Track build provenance and CI/CD information.
+  </Accordion>
+</AccordionGroup>
+
+## Metadata Patterns
+
+### Recommended Key Naming
+
+Use clear, consistent naming conventions:
+
+- `owner` - Team or person responsible
+- `approved` - Approval status (true/false)
+- `environment` - Target environment
+- `deployed` - Deployment status
+- `scanned` - Security scan status
+- `deprecated` - Deprecation flag
+- `critical` - Business criticality
+
+### Date Format
+
+Use ISO 8601 format for dates:
+
+```bash
+--metadata "scanned:2024-03-15,deployed-at:2024-03-15T10:30:00Z"
+```
+
+### Boolean Values
+
+Use lowercase `true`/`false`:
+
+```bash
+--metadata "approved:true,deprecated:false"
+```
+
+## Error Handling
+
+<AccordionGroup>
+  <Accordion title="Invalid metadata format">
+    ```
+    Error: Failed to parse metadata: invalid format
+    ```
+    Ensure metadata is in `key:value,key:value` format with no extra spaces.
+  </Accordion>
+
+  <Accordion title="Package not found">
+    ```
+    Error: not found: package does not exist
+    ```
+    Verify the package name and registry are correct using `hc artifact get`.
+  </Accordion>
+
+  <Accordion title="Version not found">
+    ```
+    Error: not found: version does not exist
+    ```
+    Check available versions with `hc artifact get <package>`.
+  </Accordion>
+</AccordionGroup>
+
+## Tips
+
+<Tip>
+**List before update** - Use `metadata get` to see existing metadata before adding or deleting.
+</Tip>
+
+<Note>
+**Metadata is additive** - Using `set` with new keys adds them to existing metadata. It doesn't replace all metadata.
+</Note>
+
+<Tip>
+**Automate with CI/CD** - Integrate metadata commands in your pipelines to automatically tag artifacts with build info.
+</Tip>
+
+## See Also
+
+- [hc artifact list](/commands/artifact/list) - List artifacts
+- [hc artifact get](/commands/artifact/get) - Get artifact details
+- [hc artifact push](/commands/artifact/push) - Push artifacts with metadata

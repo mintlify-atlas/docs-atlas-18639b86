@@ -1,0 +1,142 @@
+---
+title: IACM Commands Overview
+description: Execute Infrastructure as Code operations with remote execution
+---
+
+## Introduction
+
+The IACM (Infrastructure as Code Management) commands enable you to execute Terraform operations remotely using Harness servers. These commands upload your local Terraform code, execute it remotely, and stream logs back to your terminal in real-time.
+
+## Key Features
+
+- **Remote Execution**: Execute Terraform commands on Harness infrastructure without requiring local Terraform installation
+- **Real-time Log Streaming**: Stream execution logs directly to your CLI as the pipeline runs
+- **Workspace Integration**: Automatically sync with your Harness IACM workspace configuration
+- **Pipeline Orchestration**: Leverage default pipelines configured at workspace or project level
+- **Custom Arguments**: Pass Terraform-specific arguments like targets and replacements
+
+## Available Commands
+
+<CardGroup cols={1}>
+  <Card title="plan" icon="clipboard-list" href="/commands/iacm/plan">
+    Execute a Terraform plan remotely and stream the results to your terminal
+  </Card>
+</CardGroup>
+
+## How It Works
+
+### Execution Flow
+
+1. **Workspace Retrieval**: Fetches workspace configuration including repository path and default pipelines
+2. **Source Code Packaging**: Zips your local Terraform code based on workspace folder path configuration
+3. **Remote Execution Creation**: Creates a remote execution request on Harness servers
+4. **Upload**: Uploads the packaged source code with SHA-256 checksum verification
+5. **Pipeline Trigger**: Triggers the configured default pipeline for the operation
+6. **Log Streaming**: Streams execution logs in real-time, including both completed and running steps
+
+### Authentication
+
+IACM commands require authentication with Harness. See [Global Flags](/commands/global-flags) for authentication options.
+
+<Note>
+Make sure you're authenticated before running IACM commands:
+```bash
+hc auth login
+```
+</Note>
+
+## Workspace Configuration
+
+### Repository Path
+
+The `repository_path` configured in your workspace determines what code gets uploaded:
+
+- If your workspace has a folder path configured (e.g., `terraform/prod`), the CLI will find the repository root and upload the entire repository
+- If no folder path is configured, the CLI uploads the current directory and its contents
+
+<Warning>
+The CLI will prompt you for confirmation before uploading, showing exactly which directory will be uploaded.
+</Warning>
+
+### Default Pipelines
+
+Each IACM command (plan, apply, etc.) can have a default pipeline configured at:
+- **Workspace level**: Takes precedence over project-level configuration
+- **Project level**: Used if no workspace-level pipeline is configured
+
+If no default pipeline is configured, the command will fail with an error.
+
+## Log Streaming
+
+Logs are streamed from the Harness pipeline execution:
+
+- **Active Steps**: For running steps, logs are streamed in real-time using SSE (Server-Sent Events)
+- **Completed Steps**: For already completed steps, logs are fetched as a blob
+- **Format**: Logs include timestamp, level, and message content
+
+```
+INFO 03/03/2026 14:23:45 Initializing Terraform...
+INFO 03/03/2026 14:23:46 Terraform initialized successfully
+```
+
+## Error Handling
+
+### Common Errors
+
+<AccordionGroup>
+  <Accordion title="Workspace not found">
+    Ensure the workspace ID, organization, and project are correct. The workspace must exist in the specified project.
+  </Accordion>
+  
+  <Accordion title="No default pipeline configured">
+    Configure a default pipeline for the operation at either workspace or project level in the Harness UI.
+  </Accordion>
+  
+  <Accordion title="Folder path not found">
+    The `repository_path` configured in your workspace doesn't exist in your current directory. Either:
+    - Navigate to the correct directory
+    - Update the workspace repository path configuration
+  </Accordion>
+  
+  <Accordion title="Authentication failed">
+    Your authentication token may have expired. Run `hc auth login` to re-authenticate.
+  </Accordion>
+</AccordionGroup>
+
+## Examples
+
+### Basic Usage
+
+```bash
+# Execute a plan in a workspace
+hc iacm plan --workspace-id my-workspace
+```
+
+### With Organization and Project
+
+```bash
+# Override default org and project
+hc iacm plan --workspace-id my-workspace \
+  --org-id my-org \
+  --project-id my-project
+```
+
+### With Terraform Arguments
+
+```bash
+# Target specific resources
+hc iacm plan --workspace-id my-workspace \
+  --target aws_instance.web \
+  --target aws_s3_bucket.data
+
+# With variable replacements
+hc iacm plan --workspace-id my-workspace \
+  --replace aws_instance.web \
+  --replace aws_db_instance.main
+```
+
+## See Also
+
+- [iacm plan](/commands/iacm/plan) - Detailed plan command documentation
+- [Global Flags](/commands/global-flags) - Authentication and configuration flags
+- [Authentication](/authentication) - Setting up authentication with Harness

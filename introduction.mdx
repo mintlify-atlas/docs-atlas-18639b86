@@ -1,0 +1,212 @@
+---
+title: Harness CLI
+description: A powerful command-line tool for interacting with Harness services
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.svg"
+  alt="Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.svg"
+  alt="Hero Dark"
+/>
+
+## What is Harness CLI?
+
+The Harness CLI (hc) is a unified command-line interface that provides a consistent, resource-based approach to managing your Harness infrastructure. Whether you're managing artifact registries, deploying infrastructure as code, or automating workflows, hc gives you powerful tools at your fingertips.
+
+<Note>
+  The CLI follows a consistent pattern: `hc [<global-flags>] <command> <subcommand> [<positional-args>…] [<flags>]`
+</Note>
+
+## Key features
+
+<CardGroup cols={2}>
+  <Card
+    title="Artifact Registry management"
+    icon="box-archive"
+    href="/commands/registry/overview"
+  >
+    Create, manage, and migrate artifact registries supporting 12+ package types including Docker, NPM, Maven, and more.
+  </Card>
+  
+  <Card
+    title="Infrastructure as Code"
+    icon="code"
+    href="/commands/iacm/overview"
+  >
+    Plan, apply, and manage your infrastructure deployments directly from the command line.
+  </Card>
+  
+  <Card
+    title="Multiple output formats"
+    icon="table"
+    href="/concepts/output-formats"
+  >
+    Get results in human-readable tables or JSON format for easy integration with other tools and scripts.
+  </Card>
+  
+  <Card
+    title="Flexible authentication"
+    icon="key"
+    href="/concepts/authentication"
+  >
+    Authenticate using interactive login, API keys, environment variables, or configuration files.
+  </Card>
+</CardGroup>
+
+## Available commands
+
+<AccordionGroup>
+  <Accordion icon="key" title="auth - Authentication">
+    Manage authentication with Harness services. Login, logout, and check your authentication status.
+    
+    ```bash
+    hc auth login
+    hc auth status
+    hc auth logout
+    ```
+  </Accordion>
+  
+  <Accordion icon="box" title="registry - Artifact registries">
+    Manage Harness Artifact Registries. List, create, configure, and delete registries. Migrate artifacts from external sources.
+    
+    ```bash
+    hc registry list
+    hc registry get my-registry
+    hc registry migrate --config migrate.yaml
+    ```
+  </Accordion>
+  
+  <Accordion icon="cube" title="artifact - Artifacts">
+    Manage artifacts within registries. Push, pull, list, and delete artifacts across all supported package types.
+    
+    ```bash
+    hc artifact list --registry my-registry
+    hc artifact push generic my-registry ./app.zip --name myapp --version 1.0.0
+    hc artifact pull generic my-registry myapp/1.0.0 ./downloads
+    ```
+  </Accordion>
+  
+  <Accordion icon="network-wired" title="iacm - Infrastructure as Code">
+    Manage infrastructure deployments using Terraform and other IaC tools through Harness.
+    
+    ```bash
+    hc iacm plan --workspace my-workspace
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Supported package types
+
+The Harness CLI supports a wide range of package formats:
+
+<CardGroup cols={3}>
+  <Card title="Docker" icon="docker" href="/packages/docker" />
+  <Card title="Generic" icon="file" href="/packages/generic" />
+  <Card title="Go" icon="golang" href="/packages/go" />
+  <Card title="NPM" icon="npm" href="/packages/npm" />
+  <Card title="Maven" icon="java" href="/packages/maven" />
+  <Card title="Python" icon="python" href="/packages/python" />
+  <Card title="NuGet" icon="microsoft" href="/packages/nuget" />
+  <Card title="Cargo" icon="rust" href="/packages/cargo" />
+  <Card title="Composer" icon="php" href="/packages/composer" />
+  <Card title="Conda" icon="snake" href="/packages/conda" />
+  <Card title="Dart" icon="dart" href="/packages/dart" />
+  <Card title="RPM" icon="linux" href="/packages/rpm" />
+</CardGroup>
+
+## Quick start
+
+Get up and running with the Harness CLI in minutes:
+
+<Steps>
+  <Step title="Install the CLI">
+    Use our quick install script to get the latest version:
+    
+    ```bash
+    curl -fsSL https://raw.githubusercontent.com/harness/harness-cli/v2/install | sh
+    ```
+  </Step>
+  
+  <Step title="Authenticate">
+    Login with your Harness API token:
+    
+    ```bash
+    hc auth login
+    ```
+  </Step>
+  
+  <Step title="Run your first command">
+    List your registries:
+    
+    ```bash
+    hc registry list
+    ```
+  </Step>
+</Steps>
+
+<Card
+  title="Full quickstart guide"
+  icon="rocket"
+  href="/quickstart"
+>
+  Follow our complete quickstart guide for detailed setup instructions.
+</Card>
+
+## Global options
+
+All commands support these global flags for flexible configuration:
+
+```bash
+--account string    Account ID (overrides saved config)
+--api-url string    Base URL for the API (overrides saved config)
+--token string      Authentication token (overrides saved config)
+--org string        Organisation ID (overrides saved config)
+--project string    Project ID (overrides saved config)
+--format string     Output format: table (default) or json
+--verbose, -v       Enable verbose logging to console
+```
+
+<Info>
+  Global flags can be overridden by environment variables (`HARNESS_API_URL`, `HARNESS_API_KEY`, etc.) and command-line flags.
+</Info>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Explore all installation methods including manual installation and building from source.
+  </Card>
+  
+  <Card
+    title="Quickstart guide"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get from zero to your first successful command in minutes.
+  </Card>
+  
+  <Card
+    title="Authentication concepts"
+    icon="shield-halved"
+    href="/concepts/authentication"
+  >
+    Learn about authentication methods and configuration options.
+  </Card>
+  
+  <Card
+    title="Command reference"
+    icon="book"
+    href="/commands/auth/overview"
+  >
+    Explore the complete command reference documentation.
+  </Card>
+</CardGroup>

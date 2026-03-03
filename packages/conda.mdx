@@ -1,0 +1,241 @@
+---
+title: Conda packages
+description: Publish and install Conda packages with Harness Artifact Registry
+---
+
+Harness Artifact Registry provides support for Conda packages, allowing you to host private Python and R packages in the Conda format.
+
+## Overview
+
+Conda registry features:
+- Standard Conda repository protocol
+- Support for `.tar.bz2` package format
+- Multi-platform support (linux-64, osx-64, win-64, noarch)
+- Version and build number management
+- Integration with conda and mamba
+
+## Pushing Conda packages
+
+Use the `hc artifact push conda` command:
+
+```bash
+hc artifact push conda <registry-name> <conda-package-path> \
+  --pkg-url <pkg-url>
+```
+
+<Note>
+  Conda packages are typically `.tar.bz2` files created with `conda build`
+</Note>
+
+## Building Conda packages
+
+<Steps>
+  <Step title="Create meta.yaml">
+    Define your package recipe:
+    
+    ```yaml meta.yaml
+    package:
+      name: mypackage
+      version: "1.0.0"
+    
+    source:
+      path: ..
+    
+    build:
+      number: 0
+      script: python -m pip install . -vv
+    
+    requirements:
+      host:
+        - python
+        - pip
+      run:
+        - python
+    
+    about:
+      home: https://github.com/myorg/mypackage
+      summary: My awesome package
+      license: MIT
+    ```
+  </Step>
+  
+  <Step title="Build the package">
+    Use conda-build:
+    
+    ```bash
+    conda install conda-build
+    conda build .
+    ```
+    
+    This creates a package like:
+    ```
+    ~/anaconda3/conda-bld/linux-64/mypackage-1.0.0-py39_0.tar.bz2
+    ```
+  </Step>
+  
+  <Step title="Upload to registry">
+    Push the package:
+    
+    ```bash
+    hc artifact push conda my-registry \
+      ~/anaconda3/conda-bld/linux-64/mypackage-1.0.0-py39_0.tar.bz2 \
+      --pkg-url https://app.harness.io/registry/pkg
+    ```
+  </Step>
+</Steps>
+
+## Installing Conda packages
+
+Configure conda to use your Harness registry:
+
+### Add channel
+
+```bash
+conda config --add channels https://<registry-url>/
+conda config --set channel_priority strict
+```
+
+### Authentication
+
+Set credentials in `.condarc`:
+
+```yaml ~/.condarc
+channels:
+  - https://<username>:<token>@<registry-url>/
+  - defaults
+
+channel_priority: strict
+```
+
+### Install packages
+
+```bash
+conda install mypackage
+
+# Or with specific version
+conda install mypackage=1.0.0
+```
+
+## Examples
+
+<CodeGroup>
+
+```bash Linux package
+# Build and push for Linux
+conda build . --platform linux-64
+hc artifact push conda my-registry \
+  ~/anaconda3/conda-bld/linux-64/mypackage-1.0.0-py39_0.tar.bz2 \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash Noarch package
+# Build platform-independent package
+conda build . --noarch
+hc artifact push conda my-registry \
+  ~/anaconda3/conda-bld/noarch/mypackage-1.0.0-py_0.tar.bz2 \
+  --pkg-url https://app.harness.io/registry/pkg
+```
+
+```bash Multiple platforms
+# Build for multiple platforms
+for platform in linux-64 osx-64 win-64; do
+  conda build . --platform $platform
+  hc artifact push conda my-registry \
+    ~/anaconda3/conda-bld/$platform/mypackage-1.0.0-*.tar.bz2 \
+    --pkg-url https://app.harness.io/registry/pkg
+done
+```
+
+</CodeGroup>
+
+## Package naming convention
+
+Conda packages follow this pattern:
+
+```
+name-version-buildstring.tar.bz2
+```
+
+Examples:
+- `mypackage-1.0.0-py39_0.tar.bz2`
+- `mylib-2.1.0-py38h1234567_0.tar.bz2`
+- `tool-1.0.0-0.tar.bz2` (noarch)
+
+## Using with Mamba
+
+Mamba is a faster alternative to conda:
+
+```bash
+# Install mamba
+conda install mamba -c conda-forge
+
+# Add channel
+mamba config --add channels https://<registry-url>/
+
+# Install packages
+mamba install mypackage
+```
+
+## CI/CD integration
+
+<Tabs>
+  <Tab title="GitHub Actions">
+    ```yaml
+    - name: Build and publish
+      run: |
+        conda install conda-build
+        conda build .
+        hc artifact push conda my-registry \
+          ~/anaconda3/conda-bld/*/*.tar.bz2 \
+          --pkg-url https://app.harness.io/registry/pkg
+      env:
+        HARNESS_API_KEY: ${{ secrets.HARNESS_API_KEY }}
+    ```
+  </Tab>
+  
+  <Tab title="GitLab CI">
+    ```yaml
+    publish:
+      image: continuumio/miniconda3
+      script:
+        - conda install conda-build
+        - conda build .
+        - hc artifact push conda my-registry ~/anaconda3/conda-bld/*/*.tar.bz2 --pkg-url $PKG_URL
+      variables:
+        HARNESS_API_KEY: $HARNESS_TOKEN
+    ```
+  </Tab>
+</Tabs>
+
+## Troubleshooting
+
+<Accordion title="Package validation failed">
+  Ensure your package was built correctly:
+  
+  ```bash
+  # Verify package contents
+  tar -tjf mypackage-1.0.0-py39_0.tar.bz2 | head
+  ```
+</Accordion>
+
+<Accordion title="Channel not found">
+  Check your conda configuration:
+  
+  ```bash
+  conda config --show channels
+  ```
+</Accordion>
+
+<Accordion title="Authentication failed">
+  Verify credentials in `.condarc`:
+  
+  ```bash
+  cat ~/.condarc
+  ```
+</Accordion>
+
+## See also
+
+- [Artifact push command](/commands/artifact/push)
+- [Artifact management guide](/guides/artifact-management)
+- [Conda build documentation](https://docs.conda.io/projects/conda-build/)

@@ -1,0 +1,136 @@
+---
+title: hc artifact delete
+description: Delete artifacts or specific versions
+---
+
+## Synopsis
+
+Deletes an artifact and all its versions, or deletes a specific version if the `--version` flag is provided.
+
+```bash
+hc artifact delete <artifact-name> [flags]
+```
+
+## Arguments
+
+<ParamField path="artifact-name" type="string" required>
+  Name of the artifact to delete
+</ParamField>
+
+## Options
+
+<ParamField path="--registry" type="string" required>
+  Registry identifier containing the artifact
+</ParamField>
+
+<ParamField path="--version" type="string">
+  Specific version to delete. If not provided, deletes all versions.
+</ParamField>
+
+## Behavior
+
+### Delete All Versions
+
+When `--version` is **not** specified:
+- Deletes the entire artifact entry
+- Removes all versions of the artifact
+- Cannot be undone
+
+### Delete Specific Version
+
+When `--version` is specified:
+- Deletes only the specified version
+- Other versions remain intact
+- Artifact entry persists if other versions exist
+
+## Examples
+
+<CodeGroup>
+```bash Delete specific version
+hc artifact delete nginx --registry docker-registry --version 1.21.0
+```
+
+```bash Delete all versions
+hc artifact delete nginx --registry docker-registry
+```
+
+```bash Delete NPM package version
+hc artifact delete @myorg/my-package --registry npm-registry --version 2.0.1
+```
+
+```bash Delete Maven artifact
+hc artifact delete com.example.myapp --registry maven-registry --version 1.0.0
+```
+</CodeGroup>
+
+## Output Messages
+
+### Successful Version Deletion
+
+```
+Deleted artifact version nginx/1.21.0; msg:SUCCESS
+```
+
+### Successful Complete Deletion
+
+```
+Deleted artifact nginx and all its versions; msg:SUCCESS
+```
+
+### Error Example
+
+```
+failed to delete artifact nginx: artifact not found
+```
+
+## Safety Considerations
+
+<Warning>
+**Deletion is permanent and cannot be undone.** Always verify the artifact name and version before executing delete commands.
+</Warning>
+
+<Note>
+If you delete all versions individually, the artifact metadata entry may still exist but will contain no versions.
+</Note>
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Remove deprecated version">
+    ```bash
+    hc artifact delete my-app --registry docker-registry --version 1.0.0-deprecated
+    ```
+    Remove a specific deprecated or vulnerable version while keeping other versions.
+  </Accordion>
+
+  <Accordion title="Clean up test artifacts">
+    ```bash
+    hc artifact delete test-package --registry npm-registry
+    ```
+    Remove an entire test artifact including all versions.
+  </Accordion>
+
+  <Accordion title="Remove specific snapshot">
+    ```bash
+    hc artifact delete snapshot-build --registry maven-registry --version 1.0.0-SNAPSHOT
+    ```
+    Delete a snapshot version that's no longer needed.
+  </Accordion>
+</AccordionGroup>
+
+## Verification
+
+After deletion, verify the artifact is removed:
+
+```bash
+# Verify version deletion
+hc artifact get my-artifact --registry my-registry
+
+# Verify complete deletion
+hc artifact list --registry my-registry
+```
+
+## See Also
+
+- [hc artifact list](/commands/artifact/list) - List artifacts
+- [hc artifact get](/commands/artifact/get) - Get artifact details

@@ -1,0 +1,156 @@
+---
+title: Registry Commands Overview
+description: Manage Harness Artifact Registries using the CLI
+---
+
+The `hc registry` command group provides a comprehensive set of tools to manage Harness Artifact Registries, including creating, configuring, and managing registries, as well as migrating artifacts from other registry providers.
+
+## Available Commands
+
+| Command | Description |
+|---------|-------------|
+| [list](/commands/registry/list) | List all registries in your account |
+| [get](/commands/registry/get) | Get detailed information about registries |
+| [create](/commands/registry/create) | Create a new registry |
+| [delete](/commands/registry/delete) | Delete a registry |
+| [migrate](/commands/registry/migrate) | Migrate artifacts from external registries |
+| [configure](/commands/registry/configure) | Configure package manager clients |
+| [metadata](/commands/registry/metadata) | Manage registry metadata |
+| [firewall](/commands/registry/firewall) | Audit and analyze dependencies for security |
+
+## Alias
+
+You can use `reg` as a shorthand alias for `registry`:
+
+```bash
+hc reg list
+hc registry list  # Same command
+```
+
+## Common Use Cases
+
+### Viewing Your Registries
+
+List all registries to see what's available:
+
+```bash
+hc registry list
+```
+
+Filter by package type:
+
+```bash
+hc registry list --package-type DOCKER
+hc registry list --package-type NPM
+```
+
+### Configuring Package Managers
+
+Configure npm to use your Harness registry:
+
+```bash
+hc registry configure npm \
+  --registry my-npm-registry \
+  --pkg-url https://pkg.harness.io \
+  --project-level
+```
+
+### Managing Metadata
+
+Add metadata to registries for organization:
+
+```bash
+hc registry metadata set \
+  --registry my-docker-reg \
+  --metadata "env:prod,region:us-east"
+```
+
+### Migrating Artifacts
+
+Migrate artifacts from JFrog or Nexus:
+
+```bash
+hc registry migrate -c migration-config.yaml
+```
+
+### Security Auditing
+
+Audit dependencies for vulnerabilities:
+
+```bash
+hc registry firewall audit \
+  --registry my-npm-registry \
+  --file package-lock.json
+```
+
+## Supported Package Types
+
+Harness Artifact Registry supports the following package types:
+
+- **DOCKER** - Docker container images
+- **HELM** - Helm charts
+- **MAVEN** - Java/Maven artifacts
+- **NPM** - Node.js packages
+- **NUGET** - .NET packages
+- **PYTHON** - Python packages (PyPI)
+- **GO** - Go modules
+- **GENERIC** - Generic file storage
+- **CONDA** - Conda packages
+- **COMPOSER** - PHP packages
+- **DART** - Dart/Flutter packages
+
+## Registry Hierarchy
+
+Registries can be created at different levels:
+
+- **Account Level**: `registry-name`
+- **Organization Level**: `org/registry-name`
+- **Project Level**: `org/project/registry-name`
+
+## Authentication
+
+All registry commands require authentication. Make sure you're logged in:
+
+```bash
+hc login
+```
+
+You can also specify account, organization, and project context:
+
+```bash
+hc registry list --account my-account --org my-org --project my-project
+```
+
+## Output Formats
+
+Most commands support multiple output formats:
+
+```bash
+# Table format (default)
+hc registry list
+
+# JSON format
+hc registry list --format json
+```
+
+## Pagination
+
+List commands support pagination:
+
+```bash
+# Get first page with 20 items
+hc registry list --page-size 20 --page 0
+
+# Get second page
+hc registry list --page-size 20 --page 1
+```
+
+## Getting Help
+
+Get help for any command:
+
+```bash
+hc registry --help
+hc registry list --help
+hc registry firewall audit --help
+```

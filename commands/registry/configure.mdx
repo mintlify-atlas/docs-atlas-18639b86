@@ -1,0 +1,434 @@
+---
+title: hc registry configure
+description: Configure package manager clients to use Harness Artifact Registry
+---
+
+Configure local package manager clients (npm, Maven, Docker, etc.) to authenticate and connect to Harness Artifact Registry.
+
+## Usage
+
+```bash
+hc registry configure <package-manager> [flags]
+```
+
+## Available Subcommands
+
+| Subcommand | Description |
+|------------|-------------|
+| [npm](#npm-configuration) | Configure npm client for Harness registry |
+
+<Note>
+Currently, only npm configuration is supported. Support for other package managers (Maven, Docker, etc.) is coming soon.
+</Note>
+
+## NPM Configuration
+
+Configure npm to use a Harness Artifact Registry virtual npm registry.
+
+### Usage
+
+```bash
+hc registry configure npm [flags]
+```
+
+### Options
+
+<ParamField path="--registry" type="string" required>
+  Registry identifier (the Harness registry name)
+</ParamField>
+
+<ParamField path="--pkg-url" type="string" required>
+  Package registry base URL (e.g., `https://pkg.harness.io`)
+</ParamField>
+
+<ParamField path="--scope" type="string" optional>
+  NPM scope (e.g., `@myorg`). If not provided, configures default registry.
+</ParamField>
+
+<ParamField path="--token" type="string" optional>
+  Auth token. If not provided, uses token from `hc login`.
+</ParamField>
+
+<ParamField path="--global" type="boolean" default="false">
+  Configure globally for the user (`~/.npmrc`)
+</ParamField>
+
+<ParamField path="--project-level" type="boolean" default="false">
+  Configure at project level (`.npmrc` in current directory)
+</ParamField>
+
+<Info>
+If neither `--global` nor `--project-level` is specified, defaults to `--project-level`.
+</Info>
+
+### Examples
+
+#### Project-Level Configuration
+
+Configure npm for the current project:
+
+```bash
+hc registry configure npm \
+  --registry my-npm-registry \
+  --pkg-url https://pkg.harness.io \
+  --project-level
+```
+
+This creates/updates `.npmrc` in the current directory.
+
+#### Global Configuration
+
+Configure npm globally for your user:
+
+```bash
+hc registry configure npm \
+  --registry my-npm-registry \
+  --pkg-url https://pkg.harness.io \
+  --global
+```
+
+This configures `~/.npmrc`.
+
+#### Scoped Configuration
+
+Configure npm for a specific scope:
+
+```bash
+hc registry configure npm \
+  --registry my-npm-registry \
+  --pkg-url https://pkg.harness.io \
+  --scope @mycompany \
+  --project-level
+```
+
+This configures only `@mycompany` packages to use Harness registry.
+
+#### Custom Token
+
+Provide a specific auth token:
+
+```bash
+hc registry configure npm \
+  --registry my-npm-registry \
+  --pkg-url https://pkg.harness.io \
+  --token my-custom-token \
+  --project-level
+```
+
+### Configuration Output
+
+Successful configuration:
+
+```bash
+$ hc registry configure npm --registry my-npm-registry --pkg-url https://pkg.harness.io --project-level
+
+✓ Input parameters validated
+✓ Configuration loaded
+✓ npm configured
+✓ Successfully configured npm at project level to use registry https://pkg.harness.io/pkg/account123/my-npm-registry/npm
+```
+
+## Generated Configuration
+
+### Project-Level `.npmrc`
+
+The command creates/updates `.npmrc` in your project:
+
+<CodeGroup>
+
+```ini Default Registry
+registry=https://pkg.harness.io/pkg/account123/my-npm-registry/npm/
+//pkg.harness.io/pkg/account123/my-npm-registry/npm/:_authToken=your-token-here
+always-auth=true
+```
+
+```ini Scoped Registry
+@mycompany:registry=https://pkg.harness.io/pkg/account123/my-npm-registry/npm/
+//pkg.harness.io/pkg/account123/my-npm-registry/npm/:_authToken=your-token-here
+always-auth=true
+```
+
+</CodeGroup>
+
+### Global `~/.npmrc`
+
+When using `--global`, the configuration is written to your home directory:
+
+```ini
+registry=https://pkg.harness.io/pkg/account123/my-npm-registry/npm/
+//pkg.harness.io/pkg/account123/my-npm-registry/npm/:_authToken=your-token-here
+always-auth=true
+```
+
+## Using the Configured Registry
+
+After configuration, use npm normally:
+
+### Install Packages
+
+```bash
+# Install from Harness registry
+npm install express
+npm install @mycompany/my-package
+```
+
+### Publish Packages
+
+```bash
+# Publish to Harness registry
+npm publish
+```
+
+### View Configuration
+
+```bash
+# Check current registry
+npm config get registry
+
+# View all npm config
+npm config list
+```
+
+## Scope-Specific Configuration
+
+Configure different registries for different scopes:
+
+```bash
+# Public packages from npm
+# (default registry)
+
+# Company packages from Harness
+hc registry configure npm \
+  --registry company-npm \
+  --pkg-url https://pkg.harness.io \
+  --scope @mycompany \
+  --project-level
+```
+
+Resulting `.npmrc`:
+
+```ini
+# Default packages use npm registry
+registry=https://registry.npmjs.org/
+
+# Company packages use Harness
+@mycompany:registry=https://pkg.harness.io/pkg/account123/company-npm/npm/
+//pkg.harness.io/pkg/account123/company-npm/npm/:_authToken=token
+always-auth=true
+```
+
+## Authentication
+
+### Using Login Token
+
+The simplest method is to use the token from `hc login`:
+
+```bash
+# Login first
+hc login
+
+# Configure (uses login token automatically)
+hc registry configure npm \
+  --registry my-npm-registry \
+  --pkg-url https://pkg.harness.io
+```
+
+### Using Custom Token
+
+Provide a specific API token:
+
+```bash
+hc registry configure npm \
+  --registry my-npm-registry \
+  --pkg-url https://pkg.harness.io \
+  --token ${HARNESS_API_KEY}
+```
+
+### Environment Variable
+
+```bash
+export HARNESS_TOKEN=$(hc auth token)
+
+hc registry configure npm \
+  --registry my-npm-registry \
+  --pkg-url https://pkg.harness.io \
+  --token ${HARNESS_TOKEN}
+```
+
+## Project Setup Workflow
+
+1. **Login to Harness**:
+   ```bash
+   hc login
+   ```
+
+2. **Navigate to your project**:
+   ```bash
+   cd my-node-project
+   ```
+
+3. **Verify package.json exists**:
+   ```bash
+   ls package.json
+   ```
+
+4. **Configure npm**:
+   ```bash
+   hc registry configure npm \
+     --registry my-npm-registry \
+     --pkg-url https://pkg.harness.io \
+     --project-level
+   ```
+
+5. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+## Validation
+
+The command validates:
+- ✓ Registry identifier is provided
+- ✓ Package URL is provided
+- ✓ Account ID is configured (from login)
+- ✓ Auth token is available
+- ✓ `package.json` exists (for project-level config)
+- ✓ Cannot use both `--global` and `--project-level`
+
+## Error Messages
+
+### Registry Not Specified
+
+```
+--registry flag is required
+```
+
+**Solution**: Provide the `--registry` flag with your registry identifier.
+
+### Package URL Not Specified
+
+```
+--pkg-url flag is required
+```
+
+**Solution**: Provide the `--pkg-url` flag with the package registry URL.
+
+### Not Logged In
+
+```
+account ID not configured, please run 'hc login' first
+```
+
+**Solution**: Run `hc login` to authenticate.
+
+### No Auth Token
+
+```
+auth token not configured, please run 'hc login' first or provide --token flag
+```
+
+**Solution**: Either run `hc login` or provide `--token`.
+
+### Missing package.json
+
+```
+package.json not found in current directory. Please run this command from your npm project root directory where package.json exists, or use --global flag to configure globally
+```
+
+**Solution**: 
+- Run from a directory with `package.json`, or
+- Use `--global` flag instead
+
+### Cannot Use Both Flags
+
+```
+cannot use both --global and --project-level flags
+```
+
+**Solution**: Choose one configuration level.
+
+## Configuration Updates
+
+The command intelligently updates existing `.npmrc` files:
+
+- Preserves existing configuration
+- Updates registry URL if changed
+- Updates auth token if changed
+- Adds new entries if not present
+- Removes empty lines
+
+## Security Best Practices
+
+1. **Use project-level config**: Keeps tokens in project directory
+2. **Add .npmrc to .gitignore**: Don't commit auth tokens
+3. **Use environment variables**: For CI/CD pipelines
+4. **Rotate tokens regularly**: Update tokens periodically
+
+### .gitignore Entry
+
+```gitignore
+# Don't commit npm credentials
+.npmrc
+```
+
+### CI/CD Configuration
+
+```yaml
+# GitHub Actions example
+- name: Configure npm for Harness
+  run: |
+    hc registry configure npm \
+      --registry ${{ secrets.REGISTRY_NAME }} \
+      --pkg-url https://pkg.harness.io \
+      --token ${{ secrets.HARNESS_TOKEN }} \
+      --project-level
+```
+
+## Verification
+
+Verify the configuration works:
+
+```bash
+# Test authentication
+npm ping
+
+# List available packages
+npm search my-package
+
+# Install a test package
+npm install my-test-package
+```
+
+## Troubleshooting
+
+### Installation Fails
+
+```bash
+# Check registry configuration
+npm config get registry
+
+# Test authentication
+npm whoami
+
+# View detailed logs
+npm install --loglevel verbose
+```
+
+### Wrong Registry Used
+
+```bash
+# Check effective config
+npm config list
+
+# Check project .npmrc
+cat .npmrc
+
+# Check global .npmrc
+cat ~/.npmrc
+```
+
+## Related Commands
+
+- [hc registry list](/commands/registry/list) - List available registries
+- [hc registry get](/commands/registry/get) - Get registry details
+- [hc login](/commands/auth/login) - Authenticate with Harness

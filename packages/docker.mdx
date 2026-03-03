@@ -1,0 +1,88 @@
+---
+title: Docker packages
+description: Push and manage Docker container images in Harness Artifact Registry
+---
+
+Harness Artifact Registry provides full support for Docker container images, allowing you to store, manage, and distribute Docker images privately.
+
+## Overview
+
+Docker registries in Harness support:
+- Standard Docker Registry HTTP API V2
+- Multi-architecture images (amd64, arm64, etc.)
+- Image layers and manifest management
+- Docker Hub mirror/proxy capabilities
+- Authentication via Docker CLI
+
+## Pushing Docker images
+
+Use standard Docker CLI commands to push images to your Harness registry:
+
+```bash
+# Login to the registry
+docker login <registry-url>
+
+# Tag your image
+docker tag myimage:latest <registry-url>/myimage:latest
+
+# Push the image
+docker push <registry-url>/myimage:latest
+```
+
+## Authentication
+
+Authenticate Docker CLI with your Harness registry using your Harness API token:
+
+```bash
+echo $HARNESS_API_KEY | docker login <registry-url> -u <username> --password-stdin
+```
+
+<Note>
+  The registry URL format is typically `<account-id>.harness.io/<registry-name>`
+</Note>
+
+## Pulling Docker images
+
+Pull images using standard Docker commands:
+
+```bash
+# Pull an image
+docker pull <registry-url>/myimage:latest
+
+# Pull a specific version
+docker pull <registry-url>/myimage:1.0.0
+```
+
+## Multi-architecture images
+
+Harness supports Docker manifest lists for multi-architecture images:
+
+```bash
+# Create and push a multi-arch manifest
+docker buildx build --platform linux/amd64,linux/arm64 \
+  -t <registry-url>/myimage:latest \
+  --push .
+```
+
+## Best practices
+
+<CardGroup cols={2}>
+  <Card title="Use semantic versioning" icon="tag">
+    Tag images with semantic versions (1.0.0) in addition to latest
+  </Card>
+  <Card title="Scan for vulnerabilities" icon="shield">
+    Use registry firewall features to scan images for security issues
+  </Card>
+  <Card title="Cleanup old images" icon="trash">
+    Regularly clean up unused images to save storage costs
+  </Card>
+  <Card title="Use .dockerignore" icon="file">
+    Exclude unnecessary files to reduce image size and build time
+  </Card>
+</CardGroup>
+
+## See also
+
+- [Artifact management guide](/guides/artifact-management)
+- [Registry firewall](/commands/registry/firewall)
+- [hc artifact list](/commands/artifact/list)

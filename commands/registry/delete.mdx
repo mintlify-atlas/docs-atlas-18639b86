@@ -1,0 +1,272 @@
+---
+title: hc registry delete
+description: Delete a Harness Artifact Registry
+---
+
+Delete an existing registry from Harness Artifact Registry. This permanently removes the registry and all its contents.
+
+<Warning>
+Deleting a registry is permanent and cannot be undone. All artifacts in the registry will be deleted.
+</Warning>
+
+## Usage
+
+```bash
+hc registry delete [name] [flags]
+```
+
+## Arguments
+
+<ParamField path="name" type="string" required>
+  Name of the registry to delete
+</ParamField>
+
+## Examples
+
+### Delete a Registry
+
+Delete a specific registry:
+
+```bash
+hc registry delete my-old-registry
+```
+
+### Delete with Context
+
+Delete a registry in a specific project:
+
+```bash
+hc registry delete old-npm-packages --project my-project
+```
+
+Delete from an organization:
+
+```bash
+hc registry delete test-registry --org my-org --project my-test-project
+```
+
+## Output
+
+### Successful Deletion
+
+```bash
+$ hc registry delete my-old-registry
+
+Deleted registry my-old-registry
+```
+
+### Error: Registry Not Found
+
+```bash
+$ hc registry delete nonexistent-registry
+
+failed to delete registry nonexistent-registry: registry not found
+```
+
+## What Gets Deleted
+
+When you delete a registry, the following are permanently removed:
+
+- **All artifacts**: All packages, images, and versions stored in the registry
+- **Metadata**: All custom metadata associated with the registry
+- **Configuration**: Registry settings and policies
+- **Access logs**: Historical access logs for the registry
+- **Statistics**: Download counts and usage metrics
+
+## Pre-Deletion Checklist
+
+Before deleting a registry, verify:
+
+1. **No active dependencies**: Ensure no applications or pipelines depend on this registry
+2. **Backup artifacts**: If needed, download or migrate important artifacts
+3. **Update configurations**: Remove registry references from client configurations
+4. **Check CI/CD**: Update any CI/CD pipelines using this registry
+
+## Verify Before Deletion
+
+Check what will be deleted:
+
+```bash
+# View registry details
+hc registry get my-old-registry
+
+# Check registry size and contents
+hc registry get my-old-registry --format json
+```
+
+## Deletion Safety
+
+<Note>
+The CLI does not prompt for confirmation. Make sure you specify the correct registry name.
+</Note>
+
+To add a manual confirmation step:
+
+```bash
+# Using a shell script
+REGISTRY="my-old-registry"
+echo "Are you sure you want to delete $REGISTRY? (yes/no)"
+read CONFIRM
+if [ "$CONFIRM" = "yes" ]; then
+  hc registry delete "$REGISTRY"
+else
+  echo "Deletion cancelled"
+fi
+```
+
+## Common Use Cases
+
+### Clean Up Test Registries
+
+Remove registries created for testing:
+
+```bash
+hc registry delete test-docker-reg
+hc registry delete temp-npm-packages
+hc registry delete dev-experiments
+```
+
+### Remove Deprecated Registries
+
+Delete old registries that are no longer used:
+
+```bash
+# List registries first
+hc registry list
+
+# Delete deprecated ones
+hc registry delete legacy-maven-repo
+hc registry delete old-npm-registry
+```
+
+### Delete by Pattern
+
+Delete multiple registries using a shell loop:
+
+```bash
+# List test registries
+hc registry list | grep "test-" | awk '{print $1}' > test-registries.txt
+
+# Review the list
+cat test-registries.txt
+
+# Delete them
+while read registry; do
+  echo "Deleting $registry"
+  hc registry delete "$registry"
+done < test-registries.txt
+```
+
+## Migration Before Deletion
+
+If you need to preserve artifacts, migrate them first:
+
+```bash
+# Option 1: Migrate to another Harness registry
+hc registry migrate -c migration-config.yaml
+
+# Option 2: Pull artifacts locally
+docker pull registry.harness.io/account/my-registry/image:tag
+
+# Option 3: Push to external registry
+docker tag registry.harness.io/account/my-registry/image:tag external.com/image:tag
+docker push external.com/image:tag
+
+# Then delete
+hc registry delete my-registry
+```
+
+## Error Messages
+
+### Registry Not Found
+
+```
+failed to delete registry nonexistent-registry: registry not found
+```
+
+**Solution**: Verify the registry name:
+```bash
+hc registry list
+```
+
+### Permission Denied
+
+```
+failed to delete registry my-registry: permission denied
+```
+
+**Solution**: Ensure you have delete permissions for the registry. You may need admin or owner role.
+
+### Registry In Use
+
+```
+failed to delete registry my-registry: registry is referenced by active resources
+```
+
+**Solution**: Remove references from pipelines and configurations before deletion.
+
+## Context-Aware Deletion
+
+The registry is deleted from your current authentication context:
+
+```bash
+# Current context
+hc registry delete my-registry
+
+# Specific context
+hc registry delete my-registry \
+  --account my-account \
+  --org my-org \
+  --project my-project
+```
+
+## Registry Naming
+
+Ensure you provide the exact registry identifier:
+
+```bash
+# Correct
+hc registry delete my-docker-registry
+
+# Incorrect (display name instead of identifier)
+hc registry delete "My Docker Registry"
+```
+
+## Automation
+
+Incorporate deletion into automation scripts:
+
+```bash
+#!/bin/bash
+# cleanup-old-registries.sh
+
+REGISTRIES=("test-reg-1" "test-reg-2" "temp-registry")
+
+for registry in "${REGISTRIES[@]}"; do
+  echo "Deleting $registry..."
+  if hc registry delete "$registry" 2>&1 | grep -q "Deleted registry"; then
+    echo "✓ Successfully deleted $registry"
+  else
+    echo "✗ Failed to delete $registry"
+  fi
+done
+```
+
+## Recovery
+
+<Warning>
+There is no way to recover a deleted registry or its contents. Ensure you have backups if needed.
+</Warning>
+
+If you accidentally delete a registry:
+
+1. **Contact support**: Harness support may be able to assist with recent deletions
+2. **Restore from backup**: If you have artifact backups, create a new registry and re-upload
+3. **Rebuild artifacts**: Re-run builds to recreate artifacts
+
+## Related Commands
+
+- [hc registry list](/commands/registry/list) - View registries before deletion
+- [hc registry get](/commands/registry/get) - Check registry details
+- [hc registry create](/commands/registry/create) - Create a new registry
+- [hc registry migrate](/commands/registry/migrate) - Migrate artifacts before deletion
