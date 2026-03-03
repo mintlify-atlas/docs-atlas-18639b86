@@ -1,0 +1,211 @@
+---
+title: hc upgrade
+description: Upgrade the Harness CLI to the latest version
+---
+
+Automatically check for and install the latest version of the Harness CLI.
+
+## Usage
+
+```bash
+hc upgrade [flags]
+```
+
+## Flags
+
+<ParamField path="--pre-release" type="boolean" default="false">
+  Include pre-release versions when checking for updates. By default, only stable releases are considered.
+</ParamField>
+
+## How it works
+
+The upgrade process:
+
+<Steps>
+  <Step title="Check current version">
+    Compares your installed version with the latest release on GitHub
+  </Step>
+  
+  <Step title="Download latest release">
+    Downloads the appropriate binary for your platform (OS and architecture)
+  </Step>
+  
+  <Step title="Verify checksum">
+    Validates the downloaded file using SHA-256 checksums from the release
+  </Step>
+  
+  <Step title="Extract binary">
+    Extracts the hc binary from the archive (.tar.gz or .zip)
+  </Step>
+  
+  <Step title="Replace current binary">
+    Backs up your current binary and installs the new version
+  </Step>
+</Steps>
+
+## Examples
+
+<CodeGroup>
+
+```bash Upgrade to latest stable
+# Check and upgrade to latest stable release
+hc upgrade
+```
+
+```bash Include pre-releases
+# Upgrade to latest version including beta/alpha releases
+hc upgrade --pre-release
+```
+
+```bash Check before upgrade
+# See current version first
+hc version
+# Output: hc version v1.5.0
+
+# Then upgrade
+hc upgrade
+# Output:
+# Checking for updates...
+# Current version: v1.5.0
+# Latest version:  v2.0.0
+# Downloading...
+# ✓ Successfully upgraded to v2.0.0
+```
+
+</CodeGroup>
+
+## Supported platforms
+
+The upgrade command automatically detects your platform and downloads the correct binary:
+
+- **macOS**: Darwin (Intel x86_64, Apple Silicon arm64)
+- **Linux**: x86_64, arm64, i386
+- **Windows**: x86_64, i386
+
+## Output examples
+
+### Already up to date
+
+```
+Checking for updates...
+✓ You are already using the latest version: v2.0.0
+```
+
+### Upgrade available
+
+```
+Checking for updates...
+Current version: v1.5.0
+Latest version:  v2.0.0
+
+Downloading hc_v2.0.0_linux_x86_64.tar.gz...
+Downloading... 100.0% (15234567/15234567 bytes)
+Verifying checksum...
+✓ Checksum verified
+Extracting...
+Installing...
+
+✓ Successfully upgraded to v2.0.0
+Release notes: https://github.com/harness/harness-cli/releases/tag/v2.0.0
+```
+
+### Pre-release upgrade
+
+```bash
+hc upgrade --pre-release
+```
+
+```
+Checking for updates...
+Current version: v2.0.0
+Latest version:  v2.1.0-beta.1
+⚠️  This is a pre-release version
+
+Downloading...
+...
+✓ Successfully upgraded to v2.1.0-beta.1
+```
+
+## Development builds
+
+If you're running a development build, you'll be warned:
+
+```
+Checking for updates...
+⚠️  Development version detected. Upgrade may overwrite your local build.
+Continue? (y/N):
+```
+
+Type `y` to proceed or `n` to cancel.
+
+## Safety features
+
+<CardGroup cols={2}>
+  <Card title="Automatic backup" icon="floppy-disk">
+    Your current binary is backed up before replacement
+  </Card>
+  <Card title="Checksum verification" icon="shield-check">
+    Downloads are verified against official checksums
+  </Card>
+  <Card title="Rollback on failure" icon="rotate-left">
+    Automatically restores backup if installation fails
+  </Card>
+  <Card title="Platform detection" icon="microchip">
+    Automatically downloads the correct binary for your system
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<Accordion title="Permission denied">
+  If you installed hc to a system directory, you may need elevated permissions:
+  
+  ```bash
+  sudo hc upgrade
+  ```
+</Accordion>
+
+<Accordion title="Checksum verification failed">
+  This usually indicates a corrupted download. Try again:
+  
+  ```bash
+  hc upgrade
+  ```
+  
+  If the problem persists, download manually from the [releases page](https://github.com/harness/harness-cli/releases).
+</Accordion>
+
+<Accordion title="No compatible release found">
+  Your platform may not be supported. Check the [releases page](https://github.com/harness/harness-cli/releases) for available platforms.
+</Accordion>
+
+<Accordion title="Network/firewall issues">
+  The upgrade command needs to access:
+  - `https://api.github.com` - To check for releases
+  - `https://github.com` - To download binaries
+  
+  Ensure these domains are accessible from your network.
+</Accordion>
+
+## Manual upgrade
+
+If automatic upgrade doesn't work, you can upgrade manually:
+
+1. Download the latest release from [GitHub](https://github.com/harness/harness-cli/releases)
+2. Extract the binary
+3. Replace your existing `hc` binary:
+
+```bash
+# macOS/Linux
+sudo mv hc /usr/local/bin/hc
+sudo chmod +x /usr/local/bin/hc
+
+# Verify
+hc version
+```
+
+## See also
+
+- [hc version](/commands/version) - Check current version
+- [Installation](/installation) - Initial installation guide
+- [GitHub Releases](https://github.com/harness/harness-cli/releases) - View all releases

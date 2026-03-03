@@ -1,0 +1,84 @@
+---
+title: hc version
+description: Display the version of the Harness CLI
+---
+
+Display the current version of the Harness CLI (hc) and the Go runtime it was built with.
+
+## Usage
+
+```bash
+hc version
+```
+
+This command takes no arguments or flags.
+
+## Output
+
+The command displays:
+- The hc version number
+- The Go version used to build the binary
+
+### Example output
+
+```
+hc version v2.0.0
+Built with go1.25.0
+```
+
+## Use cases
+
+<Accordion title="Verify installation">
+  Check that hc is correctly installed and accessible:
+  
+  ```bash
+  hc version
+  ```
+</Accordion>
+
+<Accordion title="Check for updates">
+  Compare your current version with the latest release:
+  
+  ```bash
+  # Check current version
+  hc version
+  
+  # Check latest version on GitHub
+  # Then use hc upgrade if needed
+  hc upgrade
+  ```
+</Accordion>
+
+<Accordion title="Debugging and support">
+  Include version information when reporting issues:
+  
+  ```bash
+  hc version
+  # Output: hc version v2.0.0
+  # Built with go1.25.0
+  ```
+</Accordion>
+
+<Accordion title="CI/CD version verification">
+  Verify the installed version in automated workflows:
+  
+  ```bash
+  #!/bin/bash
+  VERSION=$(hc version | head -n1 | awk '{print $3}')
+  echo "Using hc version: $VERSION"
+  ```
+</Accordion>
+
+## Development builds
+
+If you're using a development build (built from source without version tags), the output will show:
+
+```
+hc version dev
+Built with go1.25.0
+```
+
+## See also
+
+- [hc upgrade](/commands/upgrade) - Upgrade to the latest version
+- [Installation](/installation) - Installation guide
