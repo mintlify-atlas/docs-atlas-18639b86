@@ -1,0 +1,161 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Harness CLI",
+  "projectDescription": "A powerful command-line interface for managing Harness resources including artifact registries, authentication, and infrastructure as code.",
+  "theme": "aspen",
+  "primaryColor": "#00ADE4",
+  "lightColor": null,
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/authentication",
+              "concepts/configuration",
+              "concepts/output-formats"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/registry-migration",
+              "guides/artifact-management",
+              "guides/iacm-usage"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Command Reference",
+        "groups": [
+          {
+            "group": "Authentication",
+            "pages": [
+              "commands/auth/overview",
+              "commands/auth/login",
+              "commands/auth/logout",
+              "commands/auth/status"
+            ]
+          },
+          {
+            "group": "Registry",
+            "pages": [
+              "commands/registry/overview",
+              "commands/registry/list",
+              "commands/registry/get",
+              "commands/registry/create",
+              "commands/registry/delete",
+              "commands/registry/migrate",
+              "commands/registry/configure",
+              "commands/registry/metadata",
+              "commands/registry/firewall"
+            ]
+          },
+          {
+            "group": "Artifact",
+            "pages": [
+              "commands/artifact/overview",
+              "commands/artifact/list",
+              "commands/artifact/get",
+              "commands/artifact/delete",
+              "commands/artifact/push",
+              "commands/artifact/pull",
+              "commands/artifact/copy",
+              "commands/artifact/metadata"
+            ]
+          },
+          {
+            "group": "Infrastructure as Code",
+            "pages": [
+              "commands/iacm/overview",
+              "commands/iacm/plan"
+            ]
+          },
+          {
+            "group": "Global Options",
+            "pages": [
+              "commands/global-flags"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Package Types",
+        "groups": [
+          {
+            "group": "Supported Formats",
+            "pages": [
+              "packages/docker",
+              "packages/generic",
+              "packages/go",
+              "packages/npm",
+              "packages/maven",
+              "packages/python",
+              "packages/nuget",
+              "packages/cargo",
+              "packages/composer",
+              "packages/conda",
+              "packages/dart",
+              "packages/rpm"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Additional Resources",
+            "pages": [
+              "troubleshooting",
+              "faq",
+              "contributing"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Unified CLI for Harness services with resource-based commands",
+    "Multi-format artifact registry management (Docker, npm, Maven, Python, Go, etc.)",
+    "Flexible authentication with API keys, config files, and environment variables",
+    "Registry migration from external sources (JFrog, Nexus)",
+    "Remote Terraform plan execution with real-time log streaming",
+    "JSON and table output formatting for all commands",
+    "Artifact metadata management and firewall configuration"
+  ],
+  "publicApiSurface": [
+    "hc auth login",
+    "hc auth logout",
+    "hc auth status",
+    "hc registry list",
+    "hc registry get",
+    "hc registry create",
+    "hc registry delete",
+    "hc registry migrate",
+    "hc registry configure",
+    "hc registry metadata",
+    "hc registry firewall",
+    "hc artifact list",
+    "hc artifact get",
+    "hc artifact delete",
+    "hc artifact push",
+    "hc artifact pull",
+    "hc artifact copy",
+    "hc artifact metadata",
+    "hc iacm plan"
+  ]
+}
